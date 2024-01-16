@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <script src="https://unpkg.com/konva@9.3.0/konva.min.js"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>leodro</title>
+    <style>
+      body {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #f0f0f0;
+        font-size: 1rem;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 15ch auto;
+        width:100vw;
+        height:100vh;
+        background: pink;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+        background: white;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .panel {
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+      }
+      textarea {
+        width:100%;
+        resize:none;
+        background: lightblue;
+        font-size: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="panel">
+        <div>
+          <label for ="motion">Rapide</label>
+          <input id = "motion" type="checkbox" checked />
+        </div>
+        <button id = "dessine">Dessine</button>
+        <textarea id="input"></textarea>
+        <div id = "textError"></div>
+      </div>
+      <div style="position: relative;">
+        <canvas id="canvas"></canvas>
+      </div>
+
+    </div>
+    <script type = "module">
+      input.value = 'r36\n-a20\n-t10\na400'
+      input.value = 'r10\n-r36\n--a20\n--t10\n-t36'
+      // https://stackoverflow.com/questions/30229536/how-to-make-a-html5-canvas-fit-dynamic-parent-flex-box-container
+      const {width, height} = canvas.parentNode.getBoundingClientRect()
+      canvas.width = width
+      canvas.height = height 
+      //const stage = new Konva.Stage({container: 'canvas', width, height })
+      //const layer1 = new Konva.Layer()  
+      //layer1.add(line([0,0,300,300]))
+      //stage.add(layer1) 
+      //
+      const ctx = canvas.getContext('2d')
+      let onGoingdrawing = false
+      let points = [], timeout
+      dessine.addEventListener('click', async () => {
+        textError.innerText = ''
+        if (onGoingdrawing) return
+        timeout =  (motion.checked) ? 0 : 50
+        onGoingdrawing = true
+        try {
+          points.push({ x: 0, y: 0 })
+          model.angle = 0
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          // layer1.clear()
+          const commands = textToCommands(input.value)
+          console.log(commands)
+          await draw(commands)
+        } catch (e) {
+          textError.innerText = e
+          console.log(e)
+        } finally {
+          onGoingdrawing = false
+        }
+      })
+      const model = {
+          angle: 0,
+          x: width/2,
+          y: height/2
+      }
+      function avance(pixelsNum) {
+        const lastPoint = points[points.length -1]
+        const x = Math.cos(model.angle)*pixelsNum
+        const y = Math.sin(model.angle)*pixelsNum
+        const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y}
+        points.push(newPoint)
+        drawLine(ctx, lastPoint, newPoint)
+        /*layer1.add(line([
+          lastPoint.x + model.x,
+          lastPoint.y + model.y,
+          newPoint.x + model.x,
+          newPoint.y + model.y
+        ]))*/
+      }
+      function tourne(angle) {
+        model.angle -= degToRad(angle)
+      }
+      async function repete(times, fn) {
+        for (let i = 0; i < times; i++) {
+          await fn()
+        }
+      }
+      function degToRad(deg) {
+        return Math.PI*deg/180
+      }
+      function indexes (len) {
+        return Array(len).fill('').map((v, i) => i)
+      }
+      function line ( points, stroke = 'black') {
+        return new Konva.Line({
+            points, 
+            stroke,
+            fill: 'black'
+        })
+      }
+      function drawLine(ctx, point1, point2) {
+        ctx.strokeStyle = 'black'
+        ctx.lineWidth = 3
+        ctx.beginPath();
+        ctx.moveTo(point1.x + model.x, point1.y + model.y)
+        ctx.lineTo(point2.x + model.x, point2.y + model.y)
+        ctx.stroke()
+      }
+      function textToCommands(text) {
+        const commands = text.split('\n')
+        const re = /^\s*(-*)\s*([a|t|r])\s*(\d+\.*\d*)$/g
+        const loops = []
+        const drawingCommands = []
+        for (const [index, command] of commands.entries()) {
+          algo2(command, index, loops, drawingCommands)
+        }
+        return drawingCommands
+      }
+      function algo2(command, index, loops, drawingCommands) {
+        const re = /^\s*(-*)\s*([a|t|r])\s*(\d+\.*\d*)$/g
+        if (command.trim() !== '') {
+          const matches = [...command.matchAll(re)]
+          if (matches.length === 0) throwError(index, 'no command')
+          const [, dash, verb, arg] = matches[0]
+          const dashNum = dash.length
+          const drawingsNum = drawingCommands.length
+          const loopsNum = loops.length
+          if (verb === 'r') {
+            const newRepeat = {verb, arg, children: []}
+            if (loopsNum === 0) {
+              drawingCommands.push(newRepeat)
+              loops.push(newRepeat.children)
+            } else {
+                if (loopsNum !== dashNum) throwError(index, 'mismatch on loops')
+                const lastChildren = loops[loopsNum - 1]
+                lastChildren.push(newRepeat)
+                loops.push(newRepeat.children)
+            }   
+          } else {
+            const newCommand = {verb, arg}
+            if (dashNum === 0) {
+              loops.length = 0
+              drawingCommands.push(newCommand)
+            } else {
+              const diff = dashNum - loopsNum
+              if (diff > 0) throwError(index, 'wrong hierarchy')
+              if (diff === 0) {
+                  const lastChildren = loops[loopsNum - 1]
+                  lastChildren.push(newCommand)
+              } else {
+                for (let i = 0; i < -diff; i++){
+                  loops.pop()
+                }
+                const lastChildren = loops.length !==0
+                  ? loops[loops.length - 1]
+                  : null
+                if (lastChildren === null ) {
+                  drawingCommands.push(newCommand)
+                } else {
+                  lastChildren.push(newCommand)
+                }
+              }
+            }
+          }
+        }
+      }
+      async function repeat(command) {
+        await repete(command.arg, async () => {
+              for (const child of command.children) {
+                if (child.verb === 'r') {
+                  await repeat(child)
+                } else {
+                  await promisedFn(basicCommand, child, timeout)
+                }
+              }
+        })
+      }
+      async function draw(commands) {
+        for (const command of commands) {
+          if (command.verb === 'r') {
+            await repeat(command)
+          } else {
+            await promisedFn(basicCommand, command, timeout)
+          }
+        }
+      }
+      function basicCommand(command) {
+        switch (command.verb) {
+          case 'a':
+            avance (command.arg) 
+            break
+          case 't':
+            tourne (command.arg)
+            break
+        }
+      }
+      function throwError (lineIndex, message = '') {
+        const m = message === '' ? '' : ':' + message
+        throw `Error at line ${lineIndex + 1} ${m}`
+      }
+      async function promisedFn (fn, arg, timeout = 50) {
+        return new Promise (
+          (resolve) => setTimeout(
+            () => {
+              fn(arg)
+              resolve()
+            }, timeout
+          )
+        )
+      }
+    </script>
+  </body>
+</html>
