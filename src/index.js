@@ -9,26 +9,16 @@ function run() {
     input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
     input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'
     input.value = test3()
-    // https://stackoverflow.com/questions/30229536/how-to-make-a-html5-canvas-fit-dynamic-parent-flex-box-container
-    /*const {width, height} = canvas.parentNode.getBoundingClientRect()
-    canvas.width = width
-    canvas.height = height 
-    const ctx = canvas.getContext('2d')*/
+    
     const layers = canvasLayers(cLayers, 2)
-    /*
-    const {width, height } = layers.getDimension()
-    const ctx = layers.getContext(0)
-    */
     let onGoingdrawing = false
     dessine.addEventListener('click', async () => {
         if (onGoingdrawing) return
         onGoingdrawing = true
         textError.innerText = ''
-        //ctx.clearRect(0, 0, width, height)
         layers.clearAll()
         try {
             const commands = textToCommands(input.value)
-            //await drawer({layers, width, height, commands, timeout: getTimeout()})
             await drawer({layers, commands, timeout: getTimeout()})
         } catch (e) {
             textError.innerText = e

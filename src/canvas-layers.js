@@ -7,6 +7,7 @@ const canvasStyle = `
     left: 0;
 `
 export function canvasLayers(containerNode, layerNum ) {
+    // https://stackoverflow.com/questions/30229536/how-to-make-a-html5-canvas-fit-dynamic-parent-flex-box-container
     const {width, height} = containerNode.getBoundingClientRect()
     const array = iArray(layerNum)
     const canvases = array.map(
