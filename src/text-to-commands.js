@@ -46,7 +46,7 @@ function parseLine(command, index, loops, drawingCommands, mode) {
                     for (let i = 0; i < diff; i++){
                         loops.pop()
                     }
-                    console.log('loops', diff, loopsNum, dashNum, loops.length)
+                    
                     const lastChildren = loops.length !==0
                         ? loops[loops.length - 1]
                         : null

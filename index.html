@@ -17,12 +17,15 @@
     <div class="container">
       <div class="panel">
         <div>
+          <div style="font-weight: bold;" class="center">Dréo<span  id="version"></span></div>
+          <hr />
           <!--label for ="motion">Rapide</label>
           <input id = "motion" type="checkbox" checked /-->
-          <div><span class="bold">a</span> avance nb</div>
-          <div><span class="bold">d</span> tourne nb</div>
-          <div><span class="bold">r</span> répète nb</div>
-          <div><span class="bold">d</span> dessine {0,1}</div>
+          <div><span class="bold">a</span>D avance Dpx</div>
+          <div><span class="bold">d</span>D tourne Dpx</div>
+          <div><span class="bold">r</span>D répète Dpx</div>
+          <div><span class="bold">d</span>B dessine {0,1}</div>
+          <hr />
         </div>
         <button id = "dessine">Dessine</button>
         <textarea id="input"></textarea>
@@ -34,7 +37,8 @@
     </div>
     <script type = "module">
       import {run} from 'dreo'
-      run()
+      const ver = run()
+      version.innerText = ver
     </script>
   </body>
 </html>

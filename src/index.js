@@ -2,6 +2,7 @@ import { textToCommands } from "./text-to-commands.js"
 import { drawer } from "./commands-to-drawing.js"
 export { run }
 
+const VERSION = "1.0"
 function run() {
     input.value = 'r36\n-a20\n-t10\na400'
     input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
@@ -13,21 +14,21 @@ function run() {
     const ctx = canvas.getContext('2d')
     let onGoingdrawing = false
     dessine.addEventListener('click', async () => {
-    if (onGoingdrawing) return
-    onGoingdrawing = true
-    textError.innerText = ''
-    ctx.clearRect(0, 0, width, height)
-    try {
-        const commands = textToCommands(input.value)
-        console.log(commands)
-        await drawer({ctx, width, height, commands, timeout: getTimeout()})
-    } catch (e) {
-        textError.innerText = e
-        console.log(e)
-    } finally {
-        onGoingdrawing = false
-    }
+        if (onGoingdrawing) return
+        onGoingdrawing = true
+        textError.innerText = ''
+        ctx.clearRect(0, 0, width, height)
+        try {
+            const commands = textToCommands(input.value)
+            await drawer({ctx, width, height, commands, timeout: getTimeout()})
+        } catch (e) {
+            textError.innerText = e
+            console.log(e)
+        } finally {
+            onGoingdrawing = false
+        }
     })
+    return VERSION
 }
 function getTimeout() {
   return 0//  motion.checked ? 0 : 50
