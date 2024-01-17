@@ -1,0 +1,1 @@
+export const iArray = (num) => Array(num).fill('').map((v,i)=> i)

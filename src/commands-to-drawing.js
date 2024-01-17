@@ -1,32 +1,34 @@
 const model = { }
-export async function drawer ({ctx, width, height, commands, timeout}) {
+export async function drawer ({layers, commands, timeout}) {
+    const {width, height } = layers.getDimension()
+    const ctx = layers.getContext(0)
+    //const ctxPointer = layers.getContext(1)
     model.points = [{ x: 0, y: 0 }]
     model.angle = 0
     model.width = width
     model.height = height
     model.x = width/2
     model.y = height/2
-    model.ctx = ctx
-    await draw(commands, timeout)
+    await draw(ctx, commands, timeout)
 }
-async function repeat(command, timeout) {
+async function repeat(ctx, command, timeout) {
     await repete(command.arg, async () => {
         for (const child of command.children) {
             if (child.verb === 'r') {
-                await repeat(child)
+                await repeat(ctx, child, timeout)
             } else {
-                await promisedFn(basicCommand, child, timeout)
+                await promisedFn(basicCommand(ctx), child, timeout)
             }
         }
     })
 }
-function avance(pixelsNum, drawingMode) {
+function avance(ctx, pixelsNum, drawingMode) {
     const lastPoint = model.points[model.points.length -1]
     const x = Math.cos(model.angle)*pixelsNum
     const y = Math.sin(model.angle)*pixelsNum
     const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y}
     model.points.push(newPoint)
-    drawLine(model.ctx, lastPoint, newPoint, drawingMode)
+    drawLine(ctx, lastPoint, newPoint, drawingMode)
 }
 async function repete(times, fn) {
     for (let i = 0; i < times; i++) {
@@ -51,22 +53,24 @@ function drawLine(ctx, point1, point2, drawingMode) {
 function degToRad(deg) {
     return Math.PI*deg/180
 }
-function basicCommand(command) {
+function basicCommand(ctx) {
+  return function(command) {
     switch (command.verb) {
       case 'a':
-        avance (command.arg, command.mode) 
+        avance (ctx, command.arg, command.mode) 
         break
       case 't':
         tourne (command.arg)
         break
     }
+  }
 }
-async function draw(commands, timeout) {
+async function draw(ctx, commands, timeout) {
     for (const command of commands) {
       if (command.verb === 'r') {
-        await repeat(command, timeout)
+        await repeat(ctx, command, timeout)
       } else {
-        await promisedFn(basicCommand, command, timeout)
+        await promisedFn(basicCommand(ctx), command, timeout)
       }
     }
 }
