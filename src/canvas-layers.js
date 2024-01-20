@@ -23,6 +23,16 @@ export function canvasLayers(containerNode, layerNum ) {
         getContext(layerNum) {
             return canvases[layerNum].getContext('2d')
         },
+        getAll() {
+            return array.map(
+                index => {
+                    return {
+                        ctx: this.getContext(index),
+                        clear: () => this.clear(index)
+                    }
+                }
+            )
+        },
         getCanvas(layerNum) {
             return canvases[layerNum].getContext('2d')
         },
@@ -36,6 +46,7 @@ export function canvasLayers(containerNode, layerNum ) {
             for (const index of array) {
                 this.clear(index)
             }
-        }
+        },
+        layerNum
     }
 }

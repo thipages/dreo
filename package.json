@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "dependencies": {
+    "expr-eval": "^2.0.2"
+  }
+}

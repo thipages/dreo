@@ -2,7 +2,11 @@ import { textToCommands } from "./text-to-commands.js"
 import { drawer } from "./commands-to-drawing.js"
 import { canvasLayers } from './canvas-layers.js'
 export { run }
-
+/*
+todo
+- moveTo
+- coordinate varaibles (X, Y) with loop integration
+*/
 const VERSION = "1.0"
 function run() {
     input.value = 'r36\n-a20\n-t10\na400'

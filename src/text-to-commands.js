@@ -4,7 +4,9 @@ export function textToCommands(text) {
     const drawingCommands = []
     let drawingMode = true
     for (const [index, command] of commands.entries()) {
-        drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
+        if (command !== '') {
+            drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
+        }
     }
     // const dc = drawingsCommands(drawingCommands)
     // console.log('dc', dc)
@@ -22,80 +24,65 @@ function repeat(command) {
         ? command
         : repeat(command)
 }
+function getTokens(line, index) {
+    const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
+    const matches = [...line.matchAll(re)]
+    if (matches.length === 0) throwError(index, 'unknown command')
+    const [, dash, verb, arg] = matches[0]
+    const args = arg.replace(/\s/g, '').split(',')
+    return { dash, verb, args }
+}
 function parseLine(command, index, loops, drawingCommands, mode) {
-    const re = /^\s*(-*)\s*([a|t|r|d])\s*(-{0,1}\d+\.*\d*)$/g
-    if (command.trim() !== '') {
-        const matches = [...command.matchAll(re)]
-        if (matches.length === 0) throwError(index, 'no command')
-        const [, dash, verb, arg] = matches[0]
-        const dashNum = dash.length
-        const drawingsNum = drawingCommands.length
-        const loopsNum = loops.length
-        if (verb === 'r') {
-            const newRepeat = {verb, arg, children: [], mode}
-            if (loopsNum === 0) {
-                drawingCommands.push(newRepeat)
-                loops.push(newRepeat.children)
-            } else {
-                const diff = loopsNum - dashNum
-                if (loopsNum === dashNum) {
-                    const lastChildren = loops[loopsNum - 1]
-                    lastChildren.push(newRepeat)
-                    loops.push(newRepeat.children)
-                } else if (diff > 0) {
-                    for (let i = 0; i < diff; i++){
-                        loops.pop()
-                    }
-                    
-                    const lastChildren = loops.length !==0
-                        ? loops[loops.length - 1]
-                        : null
-                    if (lastChildren === null ) {
-                        drawingCommands.push(newRepeat)
-                        loops.push(newRepeat.children)
-                    } else {
-                        lastChildren.push(newRepeat)
-                    }
-                } else {
-                    throwError(index, 'mismatch on loops')
-                    
-                }
-            }   
-        } else {
-            // No need to register 'd' drawing command
-            if (verb === 'd') {
-                const newMode = arg === '0' ? false : true
-                return newMode
-            }
-            const newCommand = {verb, arg, mode }
-            if (dashNum === 0) {
-                loops.length = 0
-                drawingCommands.push(newCommand)
-            } else {
-                const diff = dashNum - loopsNum
-                if (diff > 0) throwError(index, 'wrong hierarchy')
-                if (diff === 0) {
-                    const lastChildren = loops[loopsNum - 1]
-                    lastChildren.push(newCommand)
-                } else {
-                    for (let i = 0; i < -diff; i++){
-                        loops.pop()
-                    }
-                    const lastChildren = loops.length !==0
-                        ? loops[loops.length - 1]
-                        : null
-                    if (lastChildren === null ) {
-                        drawingCommands.push(newCommand)
-                    } else {
-                        lastChildren.push(newCommand)
-                    }
-                }
-            }
+    const { dash, verb, args } = getTokens(command, index)
+    const arg = args//[0]
+    const dashNum = dash.length
+    const loopsNum = loops.length
+    if (verb === 'r') {
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, true)
+    } else {
+        // No need to register 'd' drawing command
+        if (verb === 'd') {
+            const newMode = arg === '0' ? false : true
+            return newMode
         }
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, false)
     }
     return mode
 }
 function throwError (lineIndex, message = '') {
     const m = message === '' ? '' : ':' + message
     throw `Error at line ${lineIndex + 1} ${m}`
+}
+function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, isRepeat) {
+    const newCommand = {verb, arg, children: [], mode}
+    if (loopsNum === 0) {
+        drawingCommands.push(newCommand)
+        loops.push(newCommand.children)
+    } else {
+        const diff = loopsNum - dashNum
+        if (diff === 0) {
+            const lastChildren = loops[loopsNum - 1]
+            lastChildren.push(newCommand)
+            loops.push(newCommand.children)
+        } else if (diff > 0) {
+            parser2(diff, newCommand, loops, drawingCommands, isRepeat)
+        } else {
+            throwError(index, 'mismatch on loops')
+            
+        }
+    }   
+}
+function parser2(diff, newCommand, loops, drawingCommands, isRepeat) {
+    for (let i = 0; i < diff; i++){
+        loops.pop()
+    }
+    const lastChildren = loops.length !==0
+        ? loops[loops.length - 1]
+        : null
+    if (lastChildren === null ) {
+        drawingCommands.push(newCommand)
+        if (isRepeat) loops.push(newCommand.children)
+    } else {
+        lastChildren.push(newCommand)
+    }
 }
