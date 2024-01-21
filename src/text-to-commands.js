@@ -1,3 +1,20 @@
+const commandList = {
+    a: {validate: isNumeric},
+    t: {validate: isNumeric},
+    r: {validate: isNumeric},
+    d: {validate: inList(['0','1'])}
+}
+const castArray = a => Array.isArray(a) ? a : [a]
+// https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number
+function isNumeric(str) {
+    if (typeof str !== "string") return false 
+    return !isNaN(str) && !isNaN(parseFloat(str))
+}
+function inList(items) {
+    return function (item) {
+        return items.indexOf(item) !== -1
+    }
+}
 export function textToCommands(text) {
     const commands = text.split('\n')
     const loops = []
@@ -8,32 +25,30 @@ export function textToCommands(text) {
             drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
         }
     }
-    // const dc = drawingsCommands(drawingCommands)
-    // console.log('dc', dc)
     return drawingCommands
 }
-function drawingsCommands(commands) {
-    const res = []
-    for (const command of commands) {
-        res.push(repeat(command))
-    }
-    return res
-}
-function repeat(command) {
-    return !command.children
-        ? command
-        : repeat(command)
-}
 function getTokens(line, index) {
-    const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
+    //const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
+    const rCom = Object.keys(commandList).join('|')
+    const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g')
     const matches = [...line.matchAll(re)]
     if (matches.length === 0) throwError(index, 'unknown command')
     const [, dash, verb, arg] = matches[0]
     const args = arg.replace(/\s/g, '').split(',')
     return { dash, verb, args }
 }
+function validateArguments(verb, args) {
+    const commandArgs = castArray(commandList[verb])
+    if (args.length !== commandArgs.length) throw `Error : invalid arguments number for command ${verb}`
+    for (const [index, cArg] of commandArgs.entries()) {
+        console.log(index, cArg, args[index])
+        if (!cArg.validate(args[index])) throw `Error: invalid argument type`
+    }
+    return true
+}
 function parseLine(command, index, loops, drawingCommands, mode) {
     const { dash, verb, args } = getTokens(command, index)
+    validateArguments(verb, args)
     const arg = args//[0]
     const dashNum = dash.length
     const loopsNum = loops.length
@@ -68,7 +83,6 @@ function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mo
             parser2(diff, newCommand, loops, drawingCommands, isRepeat)
         } else {
             throwError(index, 'mismatch on loops')
-            
         }
     }   
 }
