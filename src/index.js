@@ -14,7 +14,7 @@ input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'
 input.value = test3()
 const layers = canvasLayers(cLayers, 2)
 let onGoingdrawing = false
-
+run()
 function run() {
     onclick()
     input.addEventListener('keyup', onclick)
