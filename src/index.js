@@ -16,7 +16,12 @@ const layers = canvasLayers(cLayers, 2)
 let onGoingdrawing = false
 
 function run() {
-    dessine.addEventListener('click', onclick )
+    onclick()
+    input.addEventListener('keyup', onclick)
+    btn_info.addEventListener('click', () => {
+        console.log('open')
+        dialog.showModal()
+    })
     return VERSION
 }
 function onclick() {
@@ -25,8 +30,9 @@ function onclick() {
     textError.innerText = ''
     layers.clearAll()
     try {
-        const commands = textToCommands(input.value)
+        const {commands, error} = textToCommands(input.value)
         drawer({layers, commands})
+        if (error) throw error
     } catch (e) {
         textError.innerText = e
         console.log(e)

@@ -17,7 +17,7 @@ export function canvasLayers(containerNode, layerNum ) {
         canvas.width = width
         canvas.height = height
         canvas.setAttribute('style',canvasStyle)
-        containerNode.appendChild(canvas)
+        containerNode.prepend(canvas)
     }
     return {
         getContext(layerNum) {

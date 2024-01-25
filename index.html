@@ -16,31 +16,47 @@
   </script>
   </head>
   <body>
+    <dialog id="dialog">
+      <h4 class="center">Mode d'emploi</h4>
+      <pre class = "table">
+        <div class="bold">aX</div>
+        <div>avance de X pixels</div>
+        <div class="bold">aX,Y</div>
+        <div>avance vers (X,Y)</div>
+        <div class="bold">tX</div>
+        <div>tourne de X degrés</div>
+        <div class="bold">rX</div>
+        <div>répète X fois)</div>
+        <div></div>
+        <i>- accès aux indices i, ii, ...</i>
+        <div></div>
+        <i>- identation via -, --, ...</i>
+        <div class="bold">d0</div>
+        <div>mode déplacement</div>
+        <div class="bold">d1</div>
+        <div>mode dessin (activé au démarrage)</div>
+      </pre>
+      <pre>Les formules sont autorisées (sin, cos, ...)</div>
+      <form class="center padding" method="dialog">
+        <button class="button">Fermer</button>
+      </form>
+    </dialog>
     <div class="container">
-      <div class="panel">
-        <div>
-          <div style="font-weight: bold;" class="center">Dréo<span  id="version"></span></div>
-          <hr />
-          <!--label for ="motion">Rapide</label>
-          <input id = "motion" type="checkbox" checked /-->
-          <div><span class="bold">a</span> avance X[,Y]</div>
-          <div><span class="bold">t</span> tourne X</div>
-          <div><span class="bold">r</span> répète X</div>
-          <div><span class="bold">d</span> dessine X{0,1}</div>
-          <hr />
+      <div id="cLayers" style="position: relative;">
+        <textarea class="absolute" id="input"></textarea>
+        <div class="buttons">
+          <div id = "textError"></div>
+          <!--button class="center icon">&#128366;</button-->
+          <!--button class="center">⚙️</button-->
+          <button class="icon" id="btn_info">&#8505;</button>
         </div>
-        <button id = "dessine">Dessine</button>
-        <textarea id="input"></textarea>
-        <div id = "textError"></div>
       </div>
-      <div id="cLayers" style="position: relative;"></div>
     </div>
     <script type = "module">
 
       import {run} from 'dreo'
       import { iArray } from './src/utils.js'
       const ver = run()
-      version.innerText = ver
     </script>
   </body>
 </html>

@@ -26,16 +26,21 @@ function inList(items) {
     }
 }
 export function textToCommands(text) {
-    const commands = text.split('\n')
-    const loops = []
     const drawingCommands = []
-    let drawingMode = true
-    for (const [index, command] of commands.entries()) {
-        if (command !== '') {
-            drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
+    let error = false
+    try {
+        const commands = text.split('\n')
+        const loops = []
+        let drawingMode = true
+        for (const [index, command] of commands.entries()) {
+            if (command !== '') {
+                drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
+            }
         }
+    } catch (e) {
+        error = e
     }
-    return drawingCommands
+    return {commands: drawingCommands, error}
 }
 function getTokens(line, index) {
     //const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
