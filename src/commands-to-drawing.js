@@ -1,5 +1,9 @@
 const model = { }
-export async function drawer ({layers, commands, timeout}) {
+
+import {Parser} from 'expr-eval'
+const parser = new Parser()
+
+export function drawer ({layers, commands, timeout}) {
     const {width, height } = layers.getDimension()
     const all = layers.getAll()
     
@@ -9,40 +13,9 @@ export async function drawer ({layers, commands, timeout}) {
     model.height = height
     model.x = width/2
     model.y = height/2
+    model.level = 0
     // drawTriangle(all[1].ctx,20, model.points[0], model.angle)
-    await draw(all, commands, timeout)
-}
-async function repeat(ctx, command, timeout) {
-    await repete(command.arg, async () => {
-        for (const child of command.children) {
-            if (child.verb === 'r') {
-                await repeat(ctx, child, timeout)
-            } else {
-                await promisedFn(basicCommand(ctx), child, timeout)
-            }
-        }
-    })
-}
-function avance(all, pixelsNum, drawingMode) {
-    const lastPoint = model.points[model.points.length -1]
-    const x = Math.cos(model.angle)*pixelsNum
-    const y = Math.sin(model.angle)*pixelsNum
-    const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y}
-    model.points.push(newPoint)
-    drawLine(all[0].ctx, lastPoint, newPoint, drawingMode)
-    
-
-}
-async function repete(times, fn) {
-    for (let i = 0; i < times; i++) {
-      await fn()
-    }
-}
-function tourne(all, angle) {
-    model.angle -= degToRad(angle)
-    const {ctx, clear} = all[1]
-    /*clear()
-    drawTriangle(ctx ,20, {x:0, y:0}, model.angle)*/
+    draw(all, commands, timeout)
 }
 function drawTriangle(ctx, size, point, angle) {
   const bulletSize = size/5
@@ -79,33 +52,78 @@ function degToRad(deg) {
     return Math.PI*deg/180
 }
 function basicCommand(all) {
+  all[0].ctx.globalAlpha = 0.1
   return function(command) {
+    const values = command.arg.map(
+      v => parser.parse(v).evaluate(model)
+    )   
     switch (command.verb) {
       case 'a':
-        avance (all, command.arg[0], command.mode) 
+        if (values.length === 1) {
+          avance (all, values[0], command.mode) 
+        } else {
+          deplace (all, values, command.mode)
+        }
         break
       case 't':
-        tourne (all, command.arg[0])
+        tourne (all, values[0])
         break
     }
   }
 }
-async function draw(all, commands, timeout) {
+function repeat(ctx, command) {
+  model.level ++
+  repete(command.arg, () => {
+      for (const [index, child] of command.children.entries()) {
+          if (child.verb === 'r') {
+              repeat(ctx, child)
+          } else {
+              basicCommand(ctx)(child)
+          }
+      }
+  })
+  model.level --
+}
+function repete(times, fn) {
+  for (let i = 0; i < times; i++) {
+    model[getIndexVars(model.level)] = i
+    fn()
+  }
+}
+function draw(all, commands) {
     for (const command of commands) {
       if (command.verb === 'r') {
-        await repeat(all, command, timeout)
+        repeat(all, command)
       } else {
-        await promisedFn(basicCommand(all), command, timeout)
+        model.i = undefined
+        basicCommand(all)(command)
       }
     }
 }
-async function promisedFn (fn, arg, timeout = 50) {
-    return new Promise (
-      (resolve) => setTimeout(
-        () => {
-          fn(arg)
-          resolve()
-        }, 0
-      )
-    )
+// 1 -> i, 2 -> ii, ...
+function getIndexVars(level) {
+  return Array(level).fill('').reduce((acc, v) => {acc+='i';return acc}, '')
+}
+function avance(all, pixelsNum, drawingMode) {
+  const lastPoint = model.points[model.points.length -1]
+  const x = Math.cos(model.angle)*pixelsNum
+  const y = Math.sin(model.angle)*pixelsNum
+  const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y}
+  model.points.push(newPoint)
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode)
+}
+
+function tourne(all, angle) {
+  model.angle -= degToRad(angle)
+  const {ctx, clear} = all[1]
+  /*clear()
+  drawTriangle(ctx ,20, {x:0, y:0}, model.angle)*/
+}
+function deplace(all, [x, y], drawingMode) {
+  //model.x += x
+  //model.y += y
+  const lastPoint = model.points[model.points.length-1]
+  const newPoint = {x, y}
+  model.points.push(newPoint)
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode)
 }

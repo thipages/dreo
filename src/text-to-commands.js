@@ -1,7 +1,9 @@
+import {Parser} from 'expr-eval'
+const parser = new Parser()
 const commandList = {
-    a: {validate: isNumeric},
-    t: {validate: isNumeric},
-    r: {validate: isNumeric},
+    a: {min: 1, validate: [isExpression, isExpression]},
+    t: {validate: isExpression},
+    r: {validate: isExpression},
     d: {validate: inList(['0','1'])}
 }
 const castArray = a => Array.isArray(a) ? a : [a]
@@ -10,9 +12,17 @@ function isNumeric(str) {
     if (typeof str !== "string") return false 
     return !isNaN(str) && !isNaN(parseFloat(str))
 }
+function isExpression(str) {
+    try {
+        parser.parse(str)
+    } catch (e) {
+        throw 'Error : expression can not be parsed'
+    }
+    return true
+}
 function inList(items) {
-    return function (item) {
-        return items.indexOf(item) !== -1
+    return function (str) {
+        return items.indexOf(str) !== -1
     }
 }
 export function textToCommands(text) {
@@ -38,11 +48,14 @@ function getTokens(line, index) {
     return { dash, verb, args }
 }
 function validateArguments(verb, args) {
-    const commandArgs = castArray(commandList[verb])
-    if (args.length !== commandArgs.length) throw `Error : invalid arguments number for command ${verb}`
+    const commandArgs = castArray(commandList[verb].validate)
+    const min = commandList[verb].min
+    const diff = commandArgs.length - args.length
+    if ( diff < 0 ) throw `Error : to many arguments for command ${verb}`
+    if (args.length < min) throw `Error : Not enough arguments for command ${verb}`
     for (const [index, cArg] of commandArgs.entries()) {
-        console.log(index, cArg, args[index])
-        if (!cArg.validate(args[index])) throw `Error: invalid argument type`
+        if (!cArg(args[index])) throw `Error: invalid argument type`
+        if (index === args.length - 1) break
     }
     return true
 }
@@ -55,9 +68,9 @@ function parseLine(command, index, loops, drawingCommands, mode) {
     if (verb === 'r') {
         parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, true)
     } else {
-        // No need to register 'd' drawing command
+        // No need to register 'd' mode command
         if (verb === 'd') {
-            const newMode = arg === '0' ? false : true
+            const newMode = arg[0] === '0' ? false : true
             return newMode
         }
         parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, false)
@@ -72,13 +85,13 @@ function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mo
     const newCommand = {verb, arg, children: [], mode}
     if (loopsNum === 0) {
         drawingCommands.push(newCommand)
-        loops.push(newCommand.children)
+        if (isRepeat) loops.push(newCommand.children)
     } else {
         const diff = loopsNum - dashNum
         if (diff === 0) {
             const lastChildren = loops[loopsNum - 1]
             lastChildren.push(newCommand)
-            loops.push(newCommand.children)
+            if (isRepeat) loops.push(newCommand.children)
         } else if (diff > 0) {
             parser2(diff, newCommand, loops, drawingCommands, isRepeat)
         } else {

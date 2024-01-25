@@ -8,33 +8,31 @@ todo
 - coordinate varaibles (X, Y) with loop integration
 */
 const VERSION = "1.0"
+input.value = 'r36\n-a20\n-t10\na400'
+input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
+input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'
+input.value = test3()
+const layers = canvasLayers(cLayers, 2)
+let onGoingdrawing = false
+
 function run() {
-    input.value = 'r36\n-a20\n-t10\na400'
-    input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
-    input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'
-    input.value = test3()
-    
-    const layers = canvasLayers(cLayers, 2)
-    let onGoingdrawing = false
-    dessine.addEventListener('click', async () => {
-        if (onGoingdrawing) return
-        onGoingdrawing = true
-        textError.innerText = ''
-        layers.clearAll()
-        try {
-            const commands = textToCommands(input.value)
-            await drawer({layers, commands, timeout: getTimeout()})
-        } catch (e) {
-            textError.innerText = e
-            console.log(e)
-        } finally {
-            onGoingdrawing = false
-        }
-    })
+    dessine.addEventListener('click', onclick )
     return VERSION
 }
-function getTimeout() {
-  return 0//  motion.checked ? 0 : 50
+function onclick() {
+    if (onGoingdrawing) return
+    onGoingdrawing = true
+    textError.innerText = ''
+    layers.clearAll()
+    try {
+        const commands = textToCommands(input.value)
+        drawer({layers, commands})
+    } catch (e) {
+        textError.innerText = e
+        console.log(e)
+    } finally {
+        onGoingdrawing = false
+    }
 }
 
 function test3() {
