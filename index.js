@@ -1820,6 +1820,7 @@ Parser.prototype.isOperatorEnabled = function (op) {
 
 const parser$1 = new Parser();
 const commandList = {
+    z: {validate: [isExpression, isExpression]},
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
     r: {validate: isExpression},
@@ -1857,7 +1858,6 @@ function textToCommands(text) {
     return {commands: drawingCommands, error}
 }
 function getTokens(line, index) {
-    //const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
     const rCom = Object.keys(commandList).join('|');
     const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g');
     const matches = [...line.matchAll(re)];
@@ -1983,6 +1983,9 @@ function basicCommand(all) {
       case 't':
         tourne (all, values[0]);
         break
+      case 'z':
+        model.x += values[0];
+        model.y += values[1];
     }
   }
 }
@@ -2114,7 +2117,6 @@ function run() {
     onclick();
     input.addEventListener('keyup', onclick);
     btn_info.addEventListener('click', () => {
-        console.log('open');
         dialog.showModal();
     });
     return VERSION
@@ -2130,7 +2132,6 @@ function onclick() {
         if (error) throw error
     } catch (e) {
         textError.innerText = e;
-        console.log(e);
     } finally {
         onGoingdrawing = false;
     }

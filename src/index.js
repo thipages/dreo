@@ -19,7 +19,6 @@ function run() {
     onclick()
     input.addEventListener('keyup', onclick)
     btn_info.addEventListener('click', () => {
-        console.log('open')
         dialog.showModal()
     })
     return VERSION
@@ -35,7 +34,6 @@ function onclick() {
         if (error) throw error
     } catch (e) {
         textError.innerText = e
-        console.log(e)
     } finally {
         onGoingdrawing = false
     }

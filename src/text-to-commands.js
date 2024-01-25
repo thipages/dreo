@@ -1,6 +1,7 @@
 import {Parser} from 'expr-eval'
 const parser = new Parser()
 const commandList = {
+    z: {validate: [isExpression, isExpression]},
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
     r: {validate: isExpression},
@@ -43,7 +44,6 @@ export function textToCommands(text) {
     return {commands: drawingCommands, error}
 }
 function getTokens(line, index) {
-    //const re = /\s*(-*)\s*([a|t|r|d])\s*(.+)/g
     const rCom = Object.keys(commandList).join('|')
     const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g')
     const matches = [...line.matchAll(re)]

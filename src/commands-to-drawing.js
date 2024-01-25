@@ -68,6 +68,9 @@ function basicCommand(all) {
       case 't':
         tourne (all, values[0])
         break
+      case 'z':
+        model.x += values[0]
+        model.y += values[1]
     }
   }
 }
