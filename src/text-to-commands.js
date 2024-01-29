@@ -1,11 +1,12 @@
 import {Parser} from 'expr-eval'
 const parser = new Parser()
 const commandList = {
-    z: {validate: [isExpression, isExpression]},
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
-    r: {validate: isExpression},
-    d: {validate: inList(['0','1'])}
+    r: {min: 1, validate: [isExpression, isExpression]},
+    d: {validate: inList(['0','1'])},
+    z: {validate: [isExpression, isExpression]},
+    f: {validate: [isExpression, isExpression, isExpression, isExpression]}
 }
 const castArray = a => Array.isArray(a) ? a : [a]
 // https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number

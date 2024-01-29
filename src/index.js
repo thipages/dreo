@@ -8,12 +8,15 @@ todo
 - coordinate varaibles (X, Y) with loop integration
 */
 const VERSION = "1.0"
-input.value = 'r36\n-a20\n-t10\na400'
+/*input.value = 'r36\n-a20\n-t10\na400'
 input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'
+input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
 input.value = test3()
+// unfinished function implementation
+//input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2)
 let onGoingdrawing = false
+
 run()
 function run() {
     onclick()

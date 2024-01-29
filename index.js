@@ -1820,11 +1820,12 @@ Parser.prototype.isOperatorEnabled = function (op) {
 
 const parser$1 = new Parser();
 const commandList = {
-    z: {validate: [isExpression, isExpression]},
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
-    r: {validate: isExpression},
-    d: {validate: inList(['0','1'])}
+    r: {min: 1, validate: [isExpression, isExpression]},
+    d: {validate: inList(['0','1'])},
+    z: {validate: [isExpression, isExpression]},
+    f: {validate: [isExpression, isExpression, isExpression, isExpression]}
 };
 const castArray = a => Array.isArray(a) ? a : [a];
 function isExpression(str) {
@@ -1936,7 +1937,7 @@ function parser2(diff, newCommand, loops, drawingCommands, isRepeat) {
 const model = { };
 const parser = new Parser();
 
-function drawer ({layers, commands, timeout}) {
+function drawer ({layers, commands }) {
     const {width, height } = layers.getDimension();
     const all = layers.getAll();
     
@@ -1948,16 +1949,15 @@ function drawer ({layers, commands, timeout}) {
     model.y = height/2;
     model.level = 0;
     // drawTriangle(all[1].ctx,20, model.points[0], model.angle)
-    draw(all, commands);
+    draw(all, commands, model.width);
 }
-
-function drawLine(ctx, point1, point2, drawingMode) {
+function drawLine(ctx, point1, point2, drawingMode, offset = {x:0, y:0}) {
     if (drawingMode){
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(point1.x + model.x, point1.y + model.y);
-        ctx.lineTo(point2.x + model.x, point2.y + model.y);
+        ctx.moveTo(point1.x + model.x+ offset.x, point1.y + model.y+ offset.y);
+        ctx.lineTo(point2.x + model.x+ offset.x, point2.y + model.y+ offset.y);
         ctx.stroke();
     }  else {
         ctx.moveTo(point2.x + model.x, point2.y + model.y);
@@ -1966,7 +1966,7 @@ function drawLine(ctx, point1, point2, drawingMode) {
 function degToRad(deg) {
     return Math.PI*deg/180
 }
-function basicCommand(all) {
+function basicCommand(all, offset) {
   all[0].ctx.globalAlpha = 0.1;
   return function(command) {
     const values = command.arg.map(
@@ -1975,9 +1975,9 @@ function basicCommand(all) {
     switch (command.verb) {
       case 'a':
         if (values.length === 1) {
-          avance (all, values[0], command.mode); 
+          avance (all, values[0], command.mode, offset); 
         } else {
-          deplace (all, values, command.mode);
+          deplace (all, values, command.mode, offset);
         }
         break
       case 't':
@@ -1986,31 +1986,64 @@ function basicCommand(all) {
       case 'z':
         model.x += values[0];
         model.y += values[1];
+        break
     }
   }
 }
 function repeat(ctx, command) {
   model.level ++;
-  repete(command.arg, () => {
+  repete(command.arg, (offset) => {
       for (const [index, child] of command.children.entries()) {
           if (child.verb === 'r') {
               repeat(ctx, child);
           } else {
-              basicCommand(ctx)(child);
+              basicCommand(ctx)(child, offset);
           }
       }
   });
   model.level --;
 }
-function repete(times, fn) {
-  for (let i = 0; i < times; i++) {
+function repete(args, fn) {
+  let [iMin, iMax, fullScreen] = args;
+  let offset, increment;
+  const diff = iMax-iMin;
+  const ifFn = fullScreen != null;
+  if (!ifFn) {
+    increment = 1;
+    offset = {x: 0, y:0};
+  } else {
+    increment = diff/model.width;
+    offset = {x: -model.width/2, y:0};
+  }
+  if (iMax === undefined) {
+    iMax = iMin;
+    iMin = 0;
+  }
+  for (let i = iMin; i < iMax; i+=increment) {
     model[getIndexVars(model.level)] = i;
-    fn();
+    fn(offset);
   }
 }
-function draw(all, commands) {
+function draw(all, commands, width) {
     for (const command of commands) {
-      if (command.verb === 'r') {
+      const {verb, arg} = command;
+      if (verb === 'f') {
+        command.verb = 'r';
+        const [x, y, min, max] = arg;
+        command.children.push(
+          {verb: 'a', arg:[x, y], mode: true}
+        );
+        const [iMin, iMax] = [min, max].map(v=>v|0);
+        command.arg =[iMin, iMax, true];
+        command.mode = true;
+        const values = [x, y].map(
+          v => ''+parser.parse(v).evaluate({i:min})
+        );
+        const moveCommand = {
+          verb: 'a', arg: values, mode: false
+        };
+        draw(all, [moveCommand, command]);
+      } else if (command.verb === 'r') {
         repeat(all, command);
       } else {
         model.i = undefined;
@@ -2018,32 +2051,30 @@ function draw(all, commands) {
       }
     }
 }
+
 // 1 -> i, 2 -> ii, ...
 function getIndexVars(level) {
   return Array(level).fill('').reduce((acc, v) => {acc+='i';return acc}, '')
 }
-function avance(all, pixelsNum, drawingMode) {
+function avance(all, pixelsNum, drawingMode, offset) {
   const lastPoint = model.points[model.points.length -1];
   const x = Math.cos(model.angle)*pixelsNum;
   const y = Math.sin(model.angle)*pixelsNum;
   const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y};
   model.points.push(newPoint);
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode);
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset);
 }
-
 function tourne(all, angle) {
   model.angle -= degToRad(angle);
   all[1];
   /*clear()
   drawTriangle(ctx ,20, {x:0, y:0}, model.angle)*/
 }
-function deplace(all, [x, y], drawingMode) {
-  //model.x += x
-  //model.y += y
+function deplace(all, [x, y], drawingMode, offset) {
   const lastPoint = model.points[model.points.length-1];
   const newPoint = {x, y};
   model.points.push(newPoint);
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode);
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset);
 }
 
 const iArray = (num) => Array(num).fill('').map((v,i)=> i);
@@ -2106,12 +2137,15 @@ todo
 - coordinate varaibles (X, Y) with loop integration
 */
 const VERSION = "1.0";
-input.value = 'r36\n-a20\n-t10\na400';
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40';
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6';
+/*input.value = 'r36\n-a20\n-t10\na400'
+input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
+input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
 input.value = test3();
+// unfinished function implementation
+//input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2);
 let onGoingdrawing = false;
+
 run();
 function run() {
     onclick();
