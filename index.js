@@ -3147,7 +3147,7 @@ function loadStorageEntry(time) {
     currentItem = rightTime;
     return code
 }
-function createNew(code) {
+function createNewStorageEntry(code) {
     if (!isEmpty(code)) {
         updatStorageEntry(code);
     }
@@ -3165,14 +3165,14 @@ function updatStorageEntry(code, sample) {
     localStorage.setItem(currentItem, JSON.stringify({code, time:currentItem}));
     return true
 }
-function getAllItems() {
+function getAllEntries() {
     let res = [];
     for (const [key, value] of Object.entries(localStorage)) {
         const {code, time} = JSON.parse(value);
         const  text = formatDate(time);
         res.push( {id: time, text});
     }
-    return [...res, ...res, ...res, ... res, ... res, ...res, ...res]
+    return res
 }
 
 function formatDate(time){    
@@ -3189,50 +3189,47 @@ function formatDate(time){
     return new Intl.DateTimeFormat('fr-FR', options).format(date)
 }
 
-const VERSION = "1.0";
+//
 input.value = sample();
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2);
 let onGoingdrawing = false;
 t2.innerHTML = helpFunctions;
-let painter;
-//localStorage.clear()
+
 run();
 
 function run() {
-    updateDrawing();
+    let painter;
+    updateDrawing(painter);
     input.addEventListener('keyup', () => {
         updatStorageEntry(input.value, sample());
-        updateDrawing();
+        updateDrawing(painter);
     });
     btn_info.addEventListener('click', () => {
         dialog.showModal();
     });
     btn_list.addEventListener('click', () => {
-        updateListView();
+        updateListView(painter);
         dialog_list.showModal();
     });
     btn_new.addEventListener('click', () => {
-        createNew(input.value);
+        createNewStorageEntry(input.value);
         input.value = '';
-        if (painter) painter.clear();
         layers.clearAll();
     });
-        
-    return VERSION
 }
-function updateListView() {
+function updateListView(painter) {
     render (
         document.getElementById(
             'dialog_list'),
-            dialogHTML(getAllItems(), v => {
+            dialogHTML(getAllEntries(), v => {
                 input.value = loadStorageEntry(v);
-                updateDrawing();
+                updateDrawing(painter);
             }
     ));
 }
-function updateDrawing() {
+function updateDrawing(painter) {
     if (onGoingdrawing) return
     onGoingdrawing = true;
     textError.innerText = '';

@@ -6,7 +6,7 @@ export function loadStorageEntry(time) {
     currentItem = rightTime
     return code
 }
-export function createNew(code) {
+export function createNewStorageEntry(code) {
     if (!isEmpty(code)) {
         updatStorageEntry(code)
     }
@@ -24,14 +24,14 @@ export function updatStorageEntry(code, sample) {
     localStorage.setItem(currentItem, JSON.stringify({code, time:currentItem}))
     return true
 }
-export function getAllItems() {
+export function getAllEntries() {
     let res = []
     for (const [key, value] of Object.entries(localStorage)) {
         const {code, time} = JSON.parse(value)
         const  text = formatDate(time)
         res.push( {id: time, text})
     }
-    return [...res, ...res, ...res, ... res, ... res, ...res, ...res]
+    return res
 }
 
 function formatDate(time){    

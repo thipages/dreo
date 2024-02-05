@@ -3,53 +3,54 @@ import { drawer } from "./commands-to-drawing.js"
 import { canvasLayers } from './canvas-layers.js'
 import {helpFunctions} from './utils.js'
 import {dialogHTML} from './storage-dialog.js'
-import { createNew, loadStorageEntry, getAllItems, updatStorageEntry } from "./local-storage.js"
+import { createNewStorageEntry, loadStorageEntry, getAllEntries, updatStorageEntry } from "./local-storage.js"
 import {render} from 'uhtml'
 export { run }
-const VERSION = "1.0"
+//
+const DEBUG = false
+if (DEBUG) localStorage.clear()
+//
 input.value = sample()
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2)
 let onGoingdrawing = false
 t2.innerHTML = helpFunctions
-let painter
-//localStorage.clear()
+
 run()
 
 function run() {
-    updateDrawing()
+    let painter
+    updateDrawing(painter)
     input.addEventListener('keyup', () => {
         updatStorageEntry(input.value, sample())
-        updateDrawing()
+        updateDrawing(painter)
     })
     btn_info.addEventListener('click', () => {
         dialog.showModal()
     })
     btn_list.addEventListener('click', () => {
-        updateListView()
+        updateListView(painter)
         dialog_list.showModal()
     })
     btn_new.addEventListener('click', () => {
-        createNew(input.value)
+        createNewStorageEntry(input.value)
         input.value = ''
         if (painter) painter.clear()
         layers.clearAll()
     })
-        
-    return VERSION
 }
-function updateListView() {
+function updateListView(painter) {
     render (
         document.getElementById(
             'dialog_list'),
-            dialogHTML(getAllItems(), v => {
+            dialogHTML(getAllEntries(), v => {
                 input.value = loadStorageEntry(v)
-                updateDrawing()
+                updateDrawing(painter)
             }
     ))
 }
-function updateDrawing() {
+function updateDrawing(painter) {
     if (onGoingdrawing) return
     onGoingdrawing = true
     textError.innerText = ''
