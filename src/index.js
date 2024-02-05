@@ -6,15 +6,7 @@ import {dialogHTML} from './storage-dialog.js'
 import { createNew, loadStorageEntry, getAllItems, updatStorageEntry } from "./local-storage.js"
 import {render} from 'uhtml'
 export { run }
-/*
-todo
-- moveTo
-- coordinate varaibles (X, Y) with loop integration
-*/
 const VERSION = "1.0"
-/*input.value = 'r36\n-a20\n-t10\na400'
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
 input.value = sample()
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
@@ -23,19 +15,8 @@ let onGoingdrawing = false
 t2.innerHTML = helpFunctions
 let painter
 //localStorage.clear()
-
-
-function updateListView() {
-    render (
-        document.getElementById('dialog_list'),
-        dialogHTML(getAllItems(), v => {
-            loadStorageEntry(v)
-            updateDrawing()
-        })
-    )
-}
-
 run()
+
 function run() {
     updateDrawing()
     input.addEventListener('keyup', () => {
@@ -53,13 +34,21 @@ function run() {
         createNew(input.value)
         input.value = ''
         if (painter) painter.clear()
-
         layers.clearAll()
     })
         
     return VERSION
 }
-
+function updateListView() {
+    render (
+        document.getElementById(
+            'dialog_list'),
+            dialogHTML(getAllItems(), v => {
+                input.value = loadStorageEntry(v)
+                updateDrawing()
+            }
+    ))
+}
 function updateDrawing() {
     if (onGoingdrawing) return
     onGoingdrawing = true

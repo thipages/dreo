@@ -1,10 +1,10 @@
 let currentItem = getNewId()
 export function loadStorageEntry(time) {
     const item =  localStorage.getItem(time)
-    if (!item) throw ('ERROR')
-    currentItem = time
-    input.value = JSON.parse(item).code
-    return true
+    if (!item) throw ('ERROR malformed local storage')
+    const {code, time: rightTime} = JSON.parse(item)
+    currentItem = rightTime
+    return code
 }
 export function createNew(code) {
     if (!isEmpty(code)) {
@@ -13,7 +13,8 @@ export function createNew(code) {
     currentItem = getNewId()
 }
 function getNewId() {
-    return  (new Date).getTime()
+    const unixTime  = (new Date).getTime()
+    return unixTime
 }
 function isEmpty(string) {
     return string.replace(/\s/g, '') === ''
@@ -27,7 +28,7 @@ export function getAllItems() {
     let res = []
     for (const [key, value] of Object.entries(localStorage)) {
         const {code, time} = JSON.parse(value)
-        const  text = formatDate((time|0)*1000)
+        const  text = formatDate(time)
         res.push( {id: time, text})
     }
     return res

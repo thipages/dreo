@@ -3141,10 +3141,10 @@ function dialogHTML(data, clicked) {
 let currentItem = getNewId();
 function loadStorageEntry(time) {
     const item =  localStorage.getItem(time);
-    if (!item) throw ('ERROR')
-    currentItem = time;
-    input.value = JSON.parse(item).code;
-    return true
+    if (!item) throw ('ERROR malformed local storage')
+    const {code, time: rightTime} = JSON.parse(item);
+    currentItem = rightTime;
+    return code
 }
 function createNew(code) {
     if (!isEmpty(code)) {
@@ -3153,7 +3153,8 @@ function createNew(code) {
     currentItem = getNewId();
 }
 function getNewId() {
-    return  (new Date).getTime()
+    const unixTime  = (new Date).getTime();
+    return unixTime
 }
 function isEmpty(string) {
     return string.replace(/\s/g, '') === ''
@@ -3167,7 +3168,7 @@ function getAllItems() {
     let res = [];
     for (const [key, value] of Object.entries(localStorage)) {
         const {code, time} = JSON.parse(value);
-        const  text = formatDate((time|0)*1000);
+        const  text = formatDate(time);
         res.push( {id: time, text});
     }
     return res
@@ -3187,15 +3188,7 @@ function formatDate(time){
     return new Intl.DateTimeFormat('fr-FR', options).format(date)
 }
 
-/*
-todo
-- moveTo
-- coordinate varaibles (X, Y) with loop integration
-*/
 const VERSION = "1.0";
-/*input.value = 'r36\n-a20\n-t10\na400'
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
-input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
 input.value = sample();
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
@@ -3204,19 +3197,8 @@ let onGoingdrawing = false;
 t2.innerHTML = helpFunctions;
 let painter;
 //localStorage.clear()
-
-
-function updateListView() {
-    render (
-        document.getElementById('dialog_list'),
-        dialogHTML(getAllItems(), v => {
-            loadStorageEntry(v);
-            updateDrawing();
-        })
-    );
-}
-
 run();
+
 function run() {
     updateDrawing();
     input.addEventListener('keyup', () => {
@@ -3234,13 +3216,21 @@ function run() {
         createNew(input.value);
         input.value = '';
         if (painter) painter.clear();
-
         layers.clearAll();
     });
         
     return VERSION
 }
-
+function updateListView() {
+    render (
+        document.getElementById(
+            'dialog_list'),
+            dialogHTML(getAllItems(), v => {
+                input.value = loadStorageEntry(v);
+                updateDrawing();
+            }
+    ));
+}
 function updateDrawing() {
     if (onGoingdrawing) return
     onGoingdrawing = true;
