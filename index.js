@@ -1818,7 +1818,7 @@ Parser.prototype.isOperatorEnabled = function (op) {
   return !(optionName in operators) || !!operators[optionName];
 };
 
-const parser$1 = new Parser();
+const parser$3 = new Parser();
 const commandList = {
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
@@ -1830,7 +1830,7 @@ const commandList = {
 const castArray = a => Array.isArray(a) ? a : [a];
 function isExpression(str) {
     try {
-        parser$1.parse(str);
+        parser$3.parse(str);
     } catch (e) {
         throw 'Error : expression can not be parsed'
     }
@@ -1858,16 +1858,28 @@ function textToCommands(text) {
     }
     return {commands: drawingCommands, error}
 }
-function getTokens(line, index) {
-    const rCom = Object.keys(commandList).join('|');
-    const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g');
+function getVariable(line) {
+    const re = /^\s*(-*)\s*#(\w+)\s*=\s*(.+)\s*/g;
     const matches = [...line.matchAll(re)];
-    if (matches.length === 0) throwError(index, 'unknown command');
+    if (matches.length === 0) return false
     const [, dash, verb, arg] = matches[0];
-    const args = arg.replace(/\s/g, '').split(',');
-    return { dash, verb, args }
+    if (verb.charAt(0) === 'i') throwError (index, 'variable can not start with the letter i');
+    return { dash, verb: '#', args:[verb, arg] }
+}
+function getTokens(line, index) {
+        const v = getVariable(line);
+        if (v) return v
+        const rCom = Object.keys(commandList).join('|');
+        const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g');
+        const matches = [...line.matchAll(re)];
+        if (matches.length === 0) throwError(index, 'unknown command');
+        const [, dash, verb, arg] = matches[0];
+        const args = arg.replace(/\s/g, '').split(',');
+        validateArguments(verb, args);
+        return { dash, verb, args }
 }
 function validateArguments(verb, args) {
+    if (!commandList[verb]) throw('ERROR: invalid')
     const commandArgs = castArray(commandList[verb].validate);
     const min = commandList[verb].min;
     const diff = commandArgs.length - args.length;
@@ -1881,7 +1893,7 @@ function validateArguments(verb, args) {
 }
 function parseLine(command, index, loops, drawingCommands, mode) {
     const { dash, verb, args } = getTokens(command, index);
-    validateArguments(verb, args);
+    // validateArguments(verb, args)
     const arg = args;//[0]
     const dashNum = dash.length;
     const loopsNum = loops.length;
@@ -1935,7 +1947,7 @@ function parser2(diff, newCommand, loops, drawingCommands, isRepeat) {
 }
 
 const model = { };
-const parser = new Parser();
+const parser$2 = new Parser();
 
 function drawer ({layers, commands }) {
     const {width, height } = layers.getDimension();
@@ -1950,6 +1962,11 @@ function drawer ({layers, commands }) {
     model.level = 0;
     // drawTriangle(all[1].ctx,20, model.points[0], model.angle)
     draw(all, commands, model.width);
+    return {
+      clear () {
+        drawer( {layers, commands: [] });
+      }
+    }
 }
 function drawLine(ctx, point1, point2, drawingMode, offset = {x:0, y:0}) {
     if (drawingMode){
@@ -1969,9 +1986,16 @@ function degToRad(deg) {
 function basicCommand(all, offset) {
   all[0].ctx.globalAlpha = 0.1;
   return function(command) {
-    const values = command.arg.map(
-      v => parser.parse(v).evaluate(model)
-    );   
+    
+    let variable = undefined;
+    let args = command.arg.slice();
+    if (command.verb === "#") {
+      variable = args.shift();
+      model[variable] = model[variable] || 0;
+    }
+    const values = args.map(
+      v => parser$2.parse(v).evaluate(model)
+    );
     switch (command.verb) {
       case 'a':
         if (values.length === 1) {
@@ -1986,6 +2010,9 @@ function basicCommand(all, offset) {
       case 'z':
         model.x += values[0];
         model.y += values[1];
+        break
+      case '#':
+        model[variable] = values[0];
         break
     }
   }
@@ -2027,23 +2054,7 @@ function repete(args, fn) {
 function draw(all, commands, width) {
     for (const command of commands) {
       const {verb, arg} = command;
-      if (verb === 'f') {
-        command.verb = 'r';
-        const [x, y, min, max] = arg;
-        command.children.push(
-          {verb: 'a', arg:[x, y], mode: true}
-        );
-        const [iMin, iMax] = [min, max].map(v=>v|0);
-        command.arg =[iMin, iMax, true];
-        command.mode = true;
-        const values = [x, y].map(
-          v => ''+parser.parse(v).evaluate({i:min})
-        );
-        const moveCommand = {
-          verb: 'a', arg: values, mode: false
-        };
-        draw(all, [moveCommand, command]);
-      } else if (command.verb === 'r') {
+      if (verb === 'f') ; else if (command.verb === 'r') {
         repeat(all, command);
       } else {
         model.i = undefined;
@@ -2078,6 +2089,36 @@ function deplace(all, [x, y], drawingMode, offset) {
 }
 
 const iArray = (num) => Array(num).fill('').map((v,i)=> i);
+
+const help = `
+x!	factoriel de x
+abs x	valeur absolue de x
+acos x	arc cosinus de x (en radians)
+acosh x	cosinus hyperbolique réciproque de x (en radians)
+asin x	Arc sinus de x (en radians)
+asinh x	sinus hyperbolique réciproque de x (en radians)
+atan x	arc tangente de x (en radians)
+atanh x	tangente hyperbolic réciproque (en radians)
+cbrt x	racine cubique
+cos x	cosinus de x (en radians)
+cosh x	cosinus hyperbolic de x (en radians)
+exp x	exponentielle de x (ou e^x)
+ln x	logarithme népérien de x (ou log x)
+log10 x	logarithme de x en base 1
+log2 x	logarithme de x en base 2
+not x	opérateur logiue NOT
+sin x	sinus de x (en radians)
+sinh x	sinus hyperbolique de x (x is in radians)
+sqrt x	racine carré de x
+tan x	tangente de x (en radians)
+tanh x	tangente hyperbolique de x (en radians)
+`;
+
+const helpFunctions = help
+    .split('\n').map(v=>v.split('\t'))
+    .filter (v => v.length === 2)
+    .map (v => `<div class="bold small">${v[0]}</div><div class="small">${v[1]}</div>`)
+    .join('');
 
 const canvasStyle = `
     width: 100%;
@@ -2131,6 +2172,972 @@ function canvasLayers(containerNode, layerNum ) {
     }
 }
 
+/**
+ * ISC License
+ *
+ * Copyright (c) 2020, Andrea Giammarchi, @WebReflection
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/**
+ * @param {Node} parentNode The container where children live
+ * @param {Node[]} a The list of current/live children
+ * @param {Node[]} b The list of future children
+ * @param {(entry: Node, action: number) => Node} get
+ * The callback invoked per each entry related DOM operation.
+ * @param {Node} [before] The optional node used as anchor to insert before.
+ * @returns {Node[]} The same list of future children.
+ */
+var udomdiff = (parentNode, a, b, get, before) => {
+  const bLength = b.length;
+  let aEnd = a.length;
+  let bEnd = bLength;
+  let aStart = 0;
+  let bStart = 0;
+  let map = null;
+  while (aStart < aEnd || bStart < bEnd) {
+    // append head, tail, or nodes in between: fast path
+    if (aEnd === aStart) {
+      // we could be in a situation where the rest of nodes that
+      // need to be added are not at the end, and in such case
+      // the node to `insertBefore`, if the index is more than 0
+      // must be retrieved, otherwise it's gonna be the first item.
+      const node = bEnd < bLength ?
+        (bStart ?
+          (get(b[bStart - 1], -0).nextSibling) :
+          get(b[bEnd - bStart], 0)) :
+        before;
+      while (bStart < bEnd)
+        parentNode.insertBefore(get(b[bStart++], 1), node);
+    }
+    // remove head or tail: fast path
+    else if (bEnd === bStart) {
+      while (aStart < aEnd) {
+        // remove the node only if it's unknown or not live
+        if (!map || !map.has(a[aStart]))
+          parentNode.removeChild(get(a[aStart], -1));
+        aStart++;
+      }
+    }
+    // same node: fast path
+    else if (a[aStart] === b[bStart]) {
+      aStart++;
+      bStart++;
+    }
+    // same tail: fast path
+    else if (a[aEnd - 1] === b[bEnd - 1]) {
+      aEnd--;
+      bEnd--;
+    }
+    // The once here single last swap "fast path" has been removed in v1.1.0
+    // https://github.com/WebReflection/udomdiff/blob/single-final-swap/esm/index.js#L69-L85
+    // reverse swap: also fast path
+    else if (
+      a[aStart] === b[bEnd - 1] &&
+      b[bStart] === a[aEnd - 1]
+    ) {
+      // this is a "shrink" operation that could happen in these cases:
+      // [1, 2, 3, 4, 5]
+      // [1, 4, 3, 2, 5]
+      // or asymmetric too
+      // [1, 2, 3, 4, 5]
+      // [1, 2, 3, 5, 6, 4]
+      const node = get(a[--aEnd], -1).nextSibling;
+      parentNode.insertBefore(
+        get(b[bStart++], 1),
+        get(a[aStart++], -1).nextSibling
+      );
+      parentNode.insertBefore(get(b[--bEnd], 1), node);
+      // mark the future index as identical (yeah, it's dirty, but cheap 👍)
+      // The main reason to do this, is that when a[aEnd] will be reached,
+      // the loop will likely be on the fast path, as identical to b[bEnd].
+      // In the best case scenario, the next loop will skip the tail,
+      // but in the worst one, this node will be considered as already
+      // processed, bailing out pretty quickly from the map index check
+      a[aEnd] = b[bEnd];
+    }
+    // map based fallback, "slow" path
+    else {
+      // the map requires an O(bEnd - bStart) operation once
+      // to store all future nodes indexes for later purposes.
+      // In the worst case scenario, this is a full O(N) cost,
+      // and such scenario happens at least when all nodes are different,
+      // but also if both first and last items of the lists are different
+      if (!map) {
+        map = new Map;
+        let i = bStart;
+        while (i < bEnd)
+          map.set(b[i], i++);
+      }
+      // if it's a future node, hence it needs some handling
+      if (map.has(a[aStart])) {
+        // grab the index of such node, 'cause it might have been processed
+        const index = map.get(a[aStart]);
+        // if it's not already processed, look on demand for the next LCS
+        if (bStart < index && index < bEnd) {
+          let i = aStart;
+          // counts the amount of nodes that are the same in the future
+          let sequence = 1;
+          while (++i < aEnd && i < bEnd && map.get(a[i]) === (index + sequence))
+            sequence++;
+          // effort decision here: if the sequence is longer than replaces
+          // needed to reach such sequence, which would brings again this loop
+          // to the fast path, prepend the difference before a sequence,
+          // and move only the future list index forward, so that aStart
+          // and bStart will be aligned again, hence on the fast path.
+          // An example considering aStart and bStart are both 0:
+          // a: [1, 2, 3, 4]
+          // b: [7, 1, 2, 3, 6]
+          // this would place 7 before 1 and, from that time on, 1, 2, and 3
+          // will be processed at zero cost
+          if (sequence > (index - bStart)) {
+            const node = get(a[aStart], 0);
+            while (bStart < index)
+              parentNode.insertBefore(get(b[bStart++], 1), node);
+          }
+          // if the effort wasn't good enough, fallback to a replace,
+          // moving both source and target indexes forward, hoping that some
+          // similar node will be found later on, to go back to the fast path
+          else {
+            parentNode.replaceChild(
+              get(b[bStart++], 1),
+              get(a[aStart++], -1)
+            );
+          }
+        }
+        // otherwise move the source forward, 'cause there's nothing to do
+        else
+          aStart++;
+      }
+      // this node has no meaning in the future list, so it's more than safe
+      // to remove it, and check the next live node out instead, meaning
+      // that only the live list index should be forwarded
+      else
+        parentNode.removeChild(get(a[aStart++], -1));
+    }
+  }
+  return b;
+};
+
+const { isArray } = Array;
+const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
+
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+const empty = [];
+
+const newRange = () => document.createRange();
+
+/**
+ * Set the `key` `value` pair to the *Map* or *WeakMap* and returns the `value`
+ * @template T
+ * @param {Map | WeakMap} map
+ * @param {any} key
+ * @param {T} value
+ * @returns {T}
+ */
+const set = (map, key, value) => {
+  map.set(key, value);
+  return value;
+};
+
+/**
+ * Return a descriptor, if any, for the referenced *Element*
+ * @param {Element} ref
+ * @param {string} prop
+ * @returns 
+ */
+const gPD = (ref, prop) => {
+  let desc;
+  do { desc = getOwnPropertyDescriptor(ref, prop); }
+  while(!desc && (ref = getPrototypeOf(ref)));
+  return desc;
+};
+
+const ELEMENT_NODE = 1;
+const COMMENT_NODE = 8;
+const DOCUMENT_FRAGMENT_NODE = 11;
+
+/*! (c) Andrea Giammarchi - ISC */
+const {setPrototypeOf} = Object;
+
+/**
+ * @param {Function} Class any base class to extend without passing through it via super() call.
+ * @returns {Function} an extensible class for the passed one.
+ * @example
+ *  // creating this very same module utility
+ *  import custom from 'custom-function/factory';
+ *  const CustomFunction = custom(Function);
+ *  class MyFunction extends CustomFunction {}
+ *  const mf = new MyFunction(() => {});
+ */
+var custom = Class => {
+  function Custom(target) {
+    return setPrototypeOf(target, new.target.prototype);
+  }
+  Custom.prototype = Class.prototype;
+  return Custom;
+};
+
+let range$1;
+/**
+ * @param {Node | Element} firstChild
+ * @param {Node | Element} lastChild
+ * @param {boolean} preserve
+ * @returns
+ */
+var drop = (firstChild, lastChild, preserve) => {
+  if (!range$1) range$1 = newRange();
+  /* c8 ignore start */
+  if (preserve)
+    range$1.setStartAfter(firstChild);
+  else
+    range$1.setStartBefore(firstChild);
+  /* c8 ignore stop */
+  range$1.setEndAfter(lastChild);
+  range$1.deleteContents();
+  return firstChild;
+};
+
+/**
+ * @param {PersistentFragment} fragment
+ * @returns {Node | Element}
+ */
+const remove = ({firstChild, lastChild}, preserve) => drop(firstChild, lastChild, preserve);
+
+let checkType = false;
+
+/**
+ * @param {Node} node
+ * @param {1 | 0 | -0 | -1} operation
+ * @returns {Node}
+ */
+const diffFragment = (node, operation) => (
+  checkType && node.nodeType === DOCUMENT_FRAGMENT_NODE ?
+    ((1 / operation) < 0 ?
+      (operation ? remove(node, true) : node.lastChild) :
+      (operation ? node.valueOf() : node.firstChild)) :
+    node
+);
+
+const comment = value => document.createComment(value);
+
+/** @extends {DocumentFragment} */
+class PersistentFragment extends custom(DocumentFragment) {
+  #firstChild = comment('<>');
+  #lastChild = comment('</>');
+  #nodes = empty;
+  constructor(fragment) {
+    super(fragment);
+    this.replaceChildren(...[
+      this.#firstChild,
+      ...fragment.childNodes,
+      this.#lastChild,
+    ]);
+    checkType = true;
+  }
+  get firstChild() { return this.#firstChild; }
+  get lastChild() { return this.#lastChild; }
+  get parentNode() { return this.#firstChild.parentNode; }
+  remove() {
+    remove(this, false);
+  }
+  replaceWith(node) {
+    remove(this, true).replaceWith(node);
+  }
+  valueOf() {
+    let { firstChild, lastChild, parentNode } = this;
+    if (parentNode === this) {
+      if (this.#nodes === empty)
+        this.#nodes = [...this.childNodes];
+    }
+    else {
+      /* c8 ignore start */
+      // there are cases where a fragment might be just appended
+      // out of the box without valueOf() invoke (first render).
+      // When these are moved around and lose their parent and,
+      // such parent is not the fragment itself, it's possible there
+      // where changes or mutations in there to take care about.
+      // This is a render-only specific issue but it's tested and
+      // it's worth fixing to me to have more consistent fragments.
+      if (parentNode) {
+        this.#nodes = [firstChild];
+        while (firstChild !== lastChild)
+          this.#nodes.push((firstChild = firstChild.nextSibling));
+      }
+      /* c8 ignore stop */
+      this.replaceChildren(...this.#nodes);
+    }
+    return this;
+  }
+}
+
+const setAttribute = (element, name, value) =>
+  element.setAttribute(name, value);
+
+/**
+ * @param {Element} element
+ * @param {string} name
+ * @returns {void}
+ */
+const removeAttribute = (element, name) =>
+  element.removeAttribute(name);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const aria = (element, value) => {
+  for (const key in value) {
+    const $ = value[key];
+    const name = key === 'role' ? key : `aria-${key}`;
+    if ($ == null) removeAttribute(element, name);
+    else setAttribute(element, name, $);
+  }
+  return value;
+};
+
+let listeners;
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const at = (element, value, name) => {
+  name = name.slice(1);
+  if (!listeners) listeners = new WeakMap;
+  const known = listeners.get(element) || set(listeners, element, {});
+  let current = known[name];
+  if (current && current[0]) element.removeEventListener(name, ...current);
+  current = isArray(value) ? value : [value, false];
+  known[name] = current;
+  if (current[0]) element.addEventListener(name, ...current);
+  return value;
+};
+
+/**
+ * @template T
+ * @param {import("./literals.js").Detail} detail
+ * @param {T} value
+ * @returns {T}
+ */
+const hole = (detail, value) => {
+  const { t: node, n: hole } = detail;
+  let nullish = false;
+  switch (typeof value) {
+    case 'object':
+      if (value !== null) {
+        (hole || node).replaceWith((detail.n = value.valueOf()));
+        break;
+      }
+    case 'undefined':
+      nullish = true;
+    default:
+      node.data = nullish ? '' : value;
+      if (hole) {
+        detail.n = null;
+        hole.replaceWith(node);
+      }
+      break;
+  }
+  return value;
+};
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const className = (element, value) => maybeDirect(
+  element, value, value == null ? 'class' : 'className'
+);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const data = (element, value) => {
+  const { dataset } = element;
+  for (const key in value) {
+    if (value[key] == null) delete dataset[key];
+    else dataset[key] = value[key];
+  }
+  return value;
+};
+
+/**
+ * @template T
+ * @param {Element | CSSStyleDeclaration} ref
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const direct = (ref, value, name) => (ref[name] = value);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const dot = (element, value, name) => direct(element, value, name.slice(1));
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const maybeDirect = (element, value, name) => (
+  value == null ?
+    (removeAttribute(element, name), value) :
+    direct(element, value, name)
+);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const ref = (element, value) => (
+  (typeof value === 'function' ?
+    value(element) : (value.current = element)),
+  value
+);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const regular = (element, value, name) => (
+  (value == null ?
+    removeAttribute(element, name) :
+    setAttribute(element, name, value)),
+  value
+);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const style = (element, value) => (
+  value == null ?
+    maybeDirect(element, value, 'style') :
+    direct(element.style, value, 'cssText')
+);
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @param {string} name
+ * @returns {T}
+ */
+const toggle = (element, value, name) => (
+  element.toggleAttribute(name.slice(1), value),
+  value
+);
+
+/**
+ * @param {Node} node
+ * @param {Node[]} value
+ * @param {string} _
+ * @param {Node[]} prev
+ * @returns {Node[]}
+ */
+const array = (node, value, prev) => {
+  // normal diff
+  const { length } = value;
+  node.data = `[${length}]`;
+  if (length)
+    return udomdiff(node.parentNode, prev, value, diffFragment, node);
+  /* c8 ignore start */
+  switch (prev.length) {
+    case 1:
+      prev[0].remove();
+    case 0:
+      break;
+    default:
+      drop(
+        diffFragment(prev[0], 0),
+        diffFragment(prev.at(-1), -0),
+        false
+      );
+      break;
+  }
+  /* c8 ignore stop */
+  return empty;
+};
+
+const attr = new Map([
+  ['aria', aria],
+  ['class', className],
+  ['data', data],
+  ['ref', ref],
+  ['style', style],
+]);
+
+/**
+ * @param {HTMLElement | SVGElement} element
+ * @param {string} name
+ * @param {boolean} svg
+ * @returns
+ */
+const attribute = (element, name, svg) => {
+  switch (name[0]) {
+    case '.': return dot;
+    case '?': return toggle;
+    case '@': return at;
+    default: return (
+      svg || ('ownerSVGElement' in element) ?
+        (name === 'ref' ? ref : regular) :
+        (attr.get(name) || (
+          name in element ?
+            (name.startsWith('on') ?
+              direct :
+              (gPD(element, name)?.set ? maybeDirect : regular)
+            ) :
+            regular
+          )
+        )
+    );
+  }
+};
+
+/**
+ * @template T
+ * @param {Element} element
+ * @param {T} value
+ * @returns {T}
+ */
+const text = (element, value) => (
+  (element.textContent = value == null ? '' : value),
+  value
+);
+
+/** @typedef {import("./persistent-fragment.js").PersistentFragment} PersistentFragment */
+/** @typedef {import("./rabbit.js").Hole} Hole */
+
+/** @typedef {unknown} Value */
+/** @typedef {Node | Element | PersistentFragment} Target */
+/** @typedef {null | undefined | string | number | boolean | Node | Element | PersistentFragment} DOMValue */
+/** @typedef {Hole | Node} ArrayValue */
+
+const abc = (a, b, c) => ({ a, b, c });
+
+const bc = (b, c) => ({ b, c });
+
+/**
+ * @typedef {Object} Detail
+ * @property {any} v the current value of the interpolation / hole
+ * @property {function} u the callback to update the value
+ * @property {Node} t the target comment node or element
+ * @property {string | null | Node} n the attribute name, if any, or `null`
+ * @property {Cache | ArrayValue[] | null} c the cache value for this detail
+ */
+
+/**
+ * @returns {Detail}
+ */
+const detail = (u, t, n, c) => ({ v: empty, u, t, n, c });
+
+/**
+ * @typedef {Object} Entry
+ * @property {number[]} a the path to retrieve the node
+ * @property {function} b the update function
+ * @property {string | null} c the attribute name, if any, or `null`
+ */
+
+/**
+ * @typedef {Object} Cache
+ * @property {null | TemplateStringsArray} a the cached template
+ * @property {null | Node | PersistentFragment} b the node returned when parsing the template
+ * @property {Detail[]} c the list of updates to perform
+ */
+
+/**
+ * @returns {Cache}
+ */
+const cache$1 = () => abc(null, null, empty);
+
+/**
+ * @param {DocumentFragment} content
+ * @param {number[]} path
+ * @returns {Element}
+ */
+const find = (content, path) => path.reduceRight(childNodesIndex, content);
+const childNodesIndex = (node, i) => node.childNodes[i];
+
+/** @param {(template: TemplateStringsArray, values: any[]) => import("./parser.js").Resolved} parse */
+var create = parse => (
+  /**
+   * @param {TemplateStringsArray} template
+   * @param {any[]} values
+   * @returns {import("./literals.js").Cache}
+   */
+  (template, values) => {
+    const { a: fragment, b: entries, c: direct } = parse(template, values);
+    const root = document.importNode(fragment, true);
+    /** @type {import("./literals.js").Detail[]} */
+    let details = empty;
+    if (entries !== empty) {
+      details = [];
+      for (let current, prev, i = 0; i < entries.length; i++) {
+        const { a: path, b: update, c: name } = entries[i];
+        const node = path === prev ? current : (current = find(root, (prev = path)));
+        details[i] = detail(
+          update,
+          node,
+          name,
+          update === array ? [] : (update === hole ? cache$1() : null)
+        );
+      }
+    }
+    return bc(
+      direct ? root.firstChild : new PersistentFragment(root),
+      details,
+    );
+  }
+);
+
+const TEXT_ELEMENTS = /^(?:plaintext|script|style|textarea|title|xmp)$/i;
+const VOID_ELEMENTS = /^(?:area|base|br|col|embed|hr|img|input|keygen|link|menuitem|meta|param|source|track|wbr)$/i;
+
+/*! (c) Andrea Giammarchi - ISC */
+
+const elements = /<([a-zA-Z0-9]+[a-zA-Z0-9:._-]*)([^>]*?)(\/?)>/g;
+const attributes = /([^\s\\>"'=]+)\s*=\s*(['"]?)\x01/g;
+const holes = /[\x01\x02]/g;
+
+// \x01 Node.ELEMENT_NODE
+// \x02 Node.ATTRIBUTE_NODE
+
+/**
+ * Given a template, find holes as both nodes and attributes and
+ * return a string with holes as either comment nodes or named attributes.
+ * @param {string[]} template a template literal tag array
+ * @param {string} prefix prefix to use per each comment/attribute
+ * @param {boolean} xml enforces self-closing tags
+ * @returns {string} X/HTML with prefixed comments or attributes
+ */
+var parser$1 = (template, prefix, xml) => {
+  let i = 0;
+  return template
+    .join('\x01')
+    .trim()
+    .replace(
+      elements,
+      (_, name, attrs, selfClosing) => `<${
+          name
+        }${
+          attrs.replace(attributes, '\x02=$2$1').trimEnd()
+        }${
+          selfClosing ? (
+            (xml || VOID_ELEMENTS.test(name)) ? ' /' : `></${name}`
+          ) : ''
+        }>`
+    )
+    .replace(
+      holes,
+      hole => hole === '\x01' ? `<!--${prefix + i++}-->` : (prefix + i++)
+    )
+  ;
+};
+
+let template = document.createElement('template'), svg, range;
+
+/**
+ * @param {string} text
+ * @param {boolean} xml
+ * @returns {DocumentFragment}
+ */
+var createContent = (text, xml) => {
+  if (xml) {
+    if (!svg) {
+      svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+      range = newRange();
+      range.selectNodeContents(svg);
+    }
+    return range.createContextualFragment(text);
+  }
+  template.innerHTML = text;
+  const { content } = template;
+  template = template.cloneNode(false);
+  return content;
+};
+
+/** @typedef {import("./literals.js").Entry} Entry */
+
+/**
+ * @typedef {Object} Resolved
+ * @param {DocumentFragment} f content retrieved from the template
+ * @param {Entry[]} e entries per each hole in the template
+ * @param {boolean} d direct node to handle
+ */
+
+/**
+ * @param {Element} node
+ * @returns {number[]}
+ */
+const createPath = node => {
+  const path = [];
+  let parentNode;
+  while ((parentNode = node.parentNode)) {
+    path.push(path.indexOf.call(parentNode.childNodes, node));
+    node = parentNode;
+  }
+  return path;
+};
+
+const textNode = () => document.createTextNode('');
+
+/**
+ * @param {TemplateStringsArray} template
+ * @param {boolean} xml
+ * @returns {Resolved}
+ */
+const resolve = (template, values, xml) => {
+  const content = createContent(parser$1(template, prefix, xml), xml);
+  const { length } = template;
+  let entries = empty;
+  if (length > 1) {
+    const replace = [];
+    const tw = document.createTreeWalker(content, 1 | 128);
+    let i = 0, search = `${prefix}${i++}`;
+    entries = [];
+    while (i < length) {
+      const node = tw.nextNode();
+      // these are holes or arrays
+      if (node.nodeType === COMMENT_NODE) {
+        if (node.data === search) {
+          // ⚠️ once array, always array!
+          const update = isArray(values[i - 1]) ? array : hole;
+          if (update === hole) replace.push(node);
+          entries.push(abc(createPath(node), update, null));
+          search = `${prefix}${i++}`;
+        }
+      }
+      else {
+        let path;
+        // these are attributes
+        while (node.hasAttribute(search)) {
+          if (!path) path = createPath(node);
+          const name = node.getAttribute(search);
+          entries.push(abc(path, attribute(node, name, xml), name));
+          removeAttribute(node, search);
+          search = `${prefix}${i++}`;
+        }
+        // these are special text-only nodes
+        if (
+          !xml &&
+          TEXT_ELEMENTS.test(node.localName) &&
+          node.textContent.trim() === `<!--${search}-->`
+        ) {
+          entries.push(abc(path || createPath(node), text, null));
+          search = `${prefix}${i++}`;
+        }
+      }
+    }
+    // can't replace holes on the fly or the tree walker fails
+    for (i = 0; i < replace.length; i++)
+      replace[i].replaceWith(textNode());
+  }
+
+  // need to decide if there should be a persistent fragment
+  const { childNodes } = content;
+  let { length: len } = childNodes;
+
+  // html`` or svg`` to signal an empty content
+  // these nodes can be passed directly as never mutated
+  if (len < 1) {
+    len = 1;
+    content.appendChild(textNode());
+  }
+  // html`${'b'}` or svg`${[]}` cases
+  else if (
+    len === 1 &&
+    // ignore html`static` or svg`static` because
+    // these nodes can be passed directly as never mutated
+    length !== 1 &&
+    childNodes[0].nodeType !== ELEMENT_NODE
+  ) {
+    // use a persistent fragment for these cases too
+    len = 0;
+  }
+
+  return set(cache, template, abc(content, entries, len === 1));
+};
+
+/** @type {WeakMap<TemplateStringsArray, Resolved>} */
+const cache = new WeakMap;
+const prefix = 'isµ';
+
+/**
+ * @param {boolean} xml
+ * @returns {(template: TemplateStringsArray, values: any[]) => Resolved}
+ */
+var parser = xml => (template, values) => cache.get(template) || resolve(template, values, xml);
+
+const parseHTML = create(parser(false));
+const parseSVG = create(parser(true));
+
+/**
+ * @param {import("./literals.js").Cache} info
+ * @param {Hole} hole
+ * @returns {Node}
+ */
+const unroll = (info, { s, t, v }) => {
+  if (info.a !== t) {
+    const { b, c } = (s ? parseSVG : parseHTML)(t, v);
+    info.a = t;
+    info.b = b;
+    info.c = c;
+  }
+  for (let { c } = info, i = 0; i < c.length; i++) {
+    const value = v[i];
+    const detail = c[i];
+    switch (detail.u) {
+      case array:
+        detail.v = array(
+          detail.t,
+          unrollValues(detail.c, value),
+          detail.v
+        );
+        break;
+      case hole:
+        const current = value instanceof Hole ?
+          unroll(detail.c || (detail.c = cache$1()), value) :
+          (detail.c = null, value)
+        ;
+        if (current !== detail.v)
+          detail.v = hole(detail, current);
+        break;
+      default:
+        if (value !== detail.v)
+          detail.v = detail.u(detail.t, value, detail.n, detail.v);
+        break;
+    }
+  }
+  return info.b;
+};
+
+/**
+ * @param {Cache} cache
+ * @param {any[]} values
+ * @returns {number}
+ */
+const unrollValues = (stack, values) => {
+  let i = 0, { length } = values;
+  if (length < stack.length) stack.splice(length);
+  for (; i < length; i++) {
+    const value = values[i];
+    if (value instanceof Hole)
+      values[i] = unroll(stack[i] || (stack[i] = cache$1()), value);
+    else stack[i] = null;
+  }
+  return values;
+};
+
+/**
+ * Holds all details needed to render the content on a render.
+ * @constructor
+ * @param {boolean} svg The content type.
+ * @param {TemplateStringsArray} template The template literals used to the define the content.
+ * @param {any[]} values Zero, one, or more interpolated values to render.
+ */
+class Hole {
+  constructor(svg, template, values) {
+    this.s = svg;
+    this.t = template;
+    this.v = values;
+  }
+  toDOM(info = cache$1()) {
+    return unroll(info, this);
+  }
+}
+
+/** @typedef {import("../rabbit.js").Hole} Hole */
+
+/** @type {WeakMap<Element | DocumentFragment, import("../literals.js").Cache>} */
+const known = new WeakMap;
+
+/**
+ * Render with smart updates within a generic container.
+ * @template T
+ * @param {T} where the DOM node where to render content
+ * @param {(() => Hole) | Hole} what the hole to render
+ * @returns
+ */
+var render = (where, what) => {
+  const info = known.get(where) || set(known, where, cache$1());
+  const { b } = info;
+  if (b !== (typeof what === 'function' ? what() : what).toDOM(info))
+    where.replaceChildren(info.b.valueOf());
+  return where;
+};
+
+/*! (c) Andrea Giammarchi - MIT */
+
+/** @typedef {import("./literals.js").Value} Value */
+
+const tag = svg => (template, ...values) => new Hole(svg, template, values);
+
+/** @type {(template: TemplateStringsArray, ...values:Value[]) => Hole} A tag to render HTML content. */
+const html = tag(false);
+
+//render (document.body, html`tit`)
+
+function listElement({id, text}, clicked) {
+    return html`
+        <button data-id=${id} onclick=${clicked}>${text}</button>
+    `
+}
+function dialogHTML(data, clicked) {
+    const style = data.length === 0 ? 'display:block' : 'display:none';
+    const c = e => {
+        return clicked(e.target.dataset.id)
+    };
+    return html`
+        <h3 class="center">Sauvegardes</h3>
+        <div class="container-ls">
+            <pre style=${style}>Pas encore de sauvegarde</pre>
+            ${data.map(v => listElement (v, c))}
+        </div>
+        <p>
+            <form class="center padding" method="dialog">
+                <button class="button">Fermer</button>
+            </form>
+        </p>
+    `
+}
+
 /*
 todo
 - moveTo
@@ -2145,26 +3152,91 @@ input.value = test3();
 //input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2);
 let onGoingdrawing = false;
+t2.innerHTML = helpFunctions;
+//
+let currentItem = getNewId();
+let painter;
+//localStorage.clear()
+function loadStorageEntry(time) {
+    console.log(getAllItems());
+    console.log('time',time);
+    const item =  localStorage.getItem(time);
+    if (!item) throw ('ERROR')
+    currentItem = time;
+    input.value = JSON.parse(item).code;
+    updateDrawing();
+    return true
+}
+function getNewId() {
+    return  (new Date).getTime()
+}
+function updatStorageEntry(code) {
+    localStorage.setItem(currentItem, JSON.stringify({code}));
+}
+function getAllItems() {
+    let res = [];
+    for (const [time, {code}] of Object.entries(localStorage)) {
+        const  text = formatDate();
+        res.push( {id: time, text});
+    }
+    return res
+}
+
+function formatDate(time){    
+    const date = (new Date).getTime();
+    var options = {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    };
+    new Intl.DateTimeFormat('fr-FR', options).format(date);
+}
+
+function updateListView() {
+    render (document.getElementById('dialog_list'), dialogHTML(getAllItems(), loadStorageEntry));
+}
 
 run();
 function run() {
-    onclick();
-    input.addEventListener('keyup', onclick);
+    updateDrawing();
+    input.addEventListener('keyup', updateDrawing);
     btn_info.addEventListener('click', () => {
         dialog.showModal();
     });
+    btn_list.addEventListener('click', () => {
+        updateListView();
+        dialog_list.showModal();
+    });
+    btn_new.addEventListener('click', () => {
+        if (!isEmpty(input.value)) {
+            updatStorageEntry(input.value);
+        }
+        input.value = '';
+        if (painter) painter.clear();
+        currentItem = getNewId();
+        layers.clearAll();
+    });
+        
     return VERSION
 }
-function onclick() {
+function isEmpty(string) {
+    return string.replace(/\s/g, '') === ''
+}
+function updateDrawing() {
     if (onGoingdrawing) return
     onGoingdrawing = true;
     textError.innerText = '';
     layers.clearAll();
     try {
         const {commands, error} = textToCommands(input.value);
-        drawer({layers, commands});
+        painter = drawer({layers, commands});
         if (error) throw error
     } catch (e) {
+        console.log(e);
         textError.innerText = e;
     } finally {
         onGoingdrawing = false;
@@ -2172,30 +3244,14 @@ function onclick() {
 }
 
 function test3() {
-return `r20
--r36
---a20
---t10
--t18
-d0
-r100
--a228.6
--d1
--a1000
--a-1000
--d0
--a-228.6
--t3.6
-
-t-90
-a400
-t90
-
-a-35
-d1
-r36
--a69.9
--t10`
+return `
+#A=1
+#C=1
+r2
+-#C = A*2
+- aC*20
+- t90
+- #A = A +1`
 }
 
 export { run };

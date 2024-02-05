@@ -8,8 +8,8 @@
   </head>
   <body>
     <dialog id="dialog">
-      <h3 class="center">Mode d'emploi</h4>
-      <pre class = "table">
+      <h3 class="center">Mode d'emploi</h3>
+      <pre id ='t1' class = "table">
         <div class="bold">aX</div>
         <div>avance de X pixels</div>
         <div class="bold">aX,Y</div>
@@ -30,11 +30,21 @@
         <div>mode dessin (activé au démarrage)</div>
         <div class="bold">zX,Y</div>
         <div>translater le dessin (usage unique)</div>
+        
       </pre>
-      <pre>Les formules sont autorisées (sin, cos, ...)</div>
+      <pre style = "line-height: 0.5rem;">X et Y peuvent être un nombre ou une expression</pre>
+      <pre style = "line-height: 0.5rem;">Un exemple d'expression :  (1.2 +2*PI)* sin(30)</pre>
+      <hr />
+      <details>
+        <summary>Liste des formules autorisées</summary>
+        <pre id ='t2' class = "table"></pre>
+      </details>
+      <hr />
       <form class="center padding" method="dialog">
         <button class="button">Fermer</button>
       </form>
+    </dialog>
+    <dialog id = "dialog_list">
     </dialog>
     <div class="container">
       <div id="cLayers" style="position: relative;">
@@ -43,6 +53,8 @@
           <div id = "textError"></div>
           <!--button class="center icon">&#128366;</button-->
           <!--button class="center">⚙️</button-->
+          <button class="icon" id="btn_list">🗄</button>
+          <button class="icon" id="btn_new">📂</button>
           <button class="icon" id="btn_info">&#8505;</button>
         </div>
       </div>

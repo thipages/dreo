@@ -44,16 +44,28 @@ export function textToCommands(text) {
     }
     return {commands: drawingCommands, error}
 }
-function getTokens(line, index) {
-    const rCom = Object.keys(commandList).join('|')
-    const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g')
+function getVariable(line) {
+    const re = /^\s*(-*)\s*#(\w+)\s*=\s*(.+)\s*/g
     const matches = [...line.matchAll(re)]
-    if (matches.length === 0) throwError(index, 'unknown command')
+    if (matches.length === 0) return false
     const [, dash, verb, arg] = matches[0]
-    const args = arg.replace(/\s/g, '').split(',')
-    return { dash, verb, args }
+    if (verb.charAt(0) === 'i') throwError (index, 'variable can not start with the letter i')
+    return { dash, verb: '#', args:[verb, arg] }
+}
+function getTokens(line, index) {
+        const v = getVariable(line)
+        if (v) return v
+        const rCom = Object.keys(commandList).join('|')
+        const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g')
+        const matches = [...line.matchAll(re)]
+        if (matches.length === 0) throwError(index, 'unknown command')
+        const [, dash, verb, arg] = matches[0]
+        const args = arg.replace(/\s/g, '').split(',')
+        validateArguments(verb, args)
+        return { dash, verb, args }
 }
 function validateArguments(verb, args) {
+    if (!commandList[verb]) throw('ERROR: invalid')
     const commandArgs = castArray(commandList[verb].validate)
     const min = commandList[verb].min
     const diff = commandArgs.length - args.length
@@ -67,7 +79,7 @@ function validateArguments(verb, args) {
 }
 function parseLine(command, index, loops, drawingCommands, mode) {
     const { dash, verb, args } = getTokens(command, index)
-    validateArguments(verb, args)
+    // validateArguments(verb, args)
     const arg = args//[0]
     const dashNum = dash.length
     const loopsNum = loops.length

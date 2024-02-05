@@ -73,8 +73,24 @@ dialog {
   grid-template-columns: auto 1fr;
   gap: 5px;
 }
+.container-ls {
+  display:grid;
+  grid-template-columns: auto;
+  gap: 5px;
+}
 .bold {
   font-weight: bold;
+}
+.list-item {
+  border: solid black 0.5px;
+  background: transparent;
+  padding: 0.2rem;
+  width:100%;
+  max-height:75vh;
+  cursor: pointer;
+}
+.small {
+  font-size: 0.9rem
 }
 .padding {
   padding: 0.2rem

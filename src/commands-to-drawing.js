@@ -16,6 +16,11 @@ export function drawer ({layers, commands }) {
     model.level = 0
     // drawTriangle(all[1].ctx,20, model.points[0], model.angle)
     draw(all, commands, model.width)
+    return {
+      clear () {
+        drawer( {layers, commands: [] })
+      }
+    }
 }
 function drawTriangle(ctx, size, point, angle) {
   const bulletSize = size/5
@@ -53,9 +58,16 @@ function degToRad(deg) {
 function basicCommand(all, offset) {
   all[0].ctx.globalAlpha = 0.1
   return function(command) {
-    const values = command.arg.map(
+    
+    let variable = undefined
+    let args = command.arg.slice()
+    if (command.verb === "#") {
+      variable = args.shift()
+      model[variable] = model[variable] || 0
+    }
+    const values = args.map(
       v => parser.parse(v).evaluate(model)
-    )   
+    )
     switch (command.verb) {
       case 'a':
         if (values.length === 1) {
@@ -70,6 +82,9 @@ function basicCommand(all, offset) {
       case 'z':
         model.x += values[0]
         model.y += values[1]
+        break
+      case '#':
+        model[variable] = values[0]
         break
     }
   }
@@ -112,7 +127,7 @@ function draw(all, commands, width) {
     for (const command of commands) {
       const {verb, arg} = command
       if (verb === 'f') {
-        command.verb = 'r'
+        /*command.verb = 'r'
         const [x, y, min, max] = arg
         command.children.push(
           {verb: 'a', arg:[x, y], mode: true}
@@ -126,7 +141,7 @@ function draw(all, commands, width) {
         const moveCommand = {
           verb: 'a', arg: values, mode: false
         }
-        draw(all, [moveCommand, command], width)
+        draw(all, [moveCommand, command], width)*/
       } else if (command.verb === 'r') {
         repeat(all, command)
       } else {
