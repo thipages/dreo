@@ -3147,7 +3147,7 @@ const VERSION = "1.0";
 /*input.value = 'r36\n-a20\n-t10\na400'
 input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
 input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
-input.value = test3();
+input.value = '';//test3()
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2);
@@ -3156,10 +3156,8 @@ t2.innerHTML = helpFunctions;
 //
 let currentItem = getNewId();
 let painter;
-//localStorage.clear()
+localStorage.clear();
 function loadStorageEntry(time) {
-    console.log(getAllItems());
-    console.log('time',time);
     const item =  localStorage.getItem(time);
     if (!item) throw ('ERROR')
     currentItem = time;
@@ -3171,19 +3169,20 @@ function getNewId() {
     return  (new Date).getTime()
 }
 function updatStorageEntry(code) {
-    localStorage.setItem(currentItem, JSON.stringify({code}));
+    localStorage.setItem(currentItem, JSON.stringify({code, time:currentItem}));
 }
 function getAllItems() {
     let res = [];
-    for (const [time, {code}] of Object.entries(localStorage)) {
-        const  text = formatDate();
+    for (const [key, value] of Object.entries(localStorage)) {
+        const {code, time} = JSON.parse(value);
+        const  text = formatDate((time|0)*1000);
         res.push( {id: time, text});
     }
     return res
 }
 
 function formatDate(time){    
-    const date = (new Date).getTime();
+    const date = new Date(time);
     var options = {
       weekday: "short",
       year: "numeric",
@@ -3193,7 +3192,7 @@ function formatDate(time){
       minute: "numeric",
       second: "numeric",
     };
-    new Intl.DateTimeFormat('fr-FR', options).format(date);
+    return new Intl.DateTimeFormat('fr-FR', options).format(date)
 }
 
 function updateListView() {
@@ -3203,7 +3202,10 @@ function updateListView() {
 run();
 function run() {
     updateDrawing();
-    input.addEventListener('keyup', updateDrawing);
+    input.addEventListener('keyup', () => {
+        if (!isEmpty(input.value)) updatStorageEntry(input.value);
+        updateDrawing();
+    });
     btn_info.addEventListener('click', () => {
         dialog.showModal();
     });
@@ -3241,17 +3243,6 @@ function updateDrawing() {
     } finally {
         onGoingdrawing = false;
     }
-}
-
-function test3() {
-return `
-#A=1
-#C=1
-r2
--#C = A*2
-- aC*20
-- t90
-- #A = A +1`
 }
 
 export { run };
