@@ -3,6 +3,7 @@ import { drawer } from "./commands-to-drawing.js"
 import { canvasLayers } from './canvas-layers.js'
 import {helpFunctions} from './utils.js'
 import {dialogHTML} from './storage-dialog.js'
+import { createNew, loadStorageEntry, getAllItems, updatStorageEntry } from "./local-storage.js"
 import {render} from 'uhtml'
 export { run }
 /*
@@ -14,63 +15,31 @@ const VERSION = "1.0"
 /*input.value = 'r36\n-a20\n-t10\na400'
 input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nd0\na300\nd1\na40'
 input.value = 'r10\n-r36\n--a20\n--t10\n-t36\nr100\n-a1000\n-a-1000\n-t3.6'*/
-input.value = test31()
+input.value = sample()
 // unfinished function implementation
 //input.value = 'fi,100*sin(5*i+10),0,1'
 const layers = canvasLayers(cLayers, 2)
 let onGoingdrawing = false
 t2.innerHTML = helpFunctions
-//
-let currentItem = getNewId()
 let painter
 //localStorage.clear()
-function loadStorageEntry(time) {
-    const item =  localStorage.getItem(time)
-    if (!item) throw ('ERROR')
-    currentItem = time
-    input.value = JSON.parse(item).code
-    updateDrawing()
-    return true
-}
-function getNewId() {
-    return  (new Date).getTime()
-}
-function updatStorageEntry(code) {
-    localStorage.setItem(currentItem, JSON.stringify({code, time:currentItem}))
-}
-function getAllItems() {
-    let res = []
-    for (const [key, value] of Object.entries(localStorage)) {
-        const {code, time} = JSON.parse(value)
-        const  text = formatDate((time|0)*1000)
-        res.push( {id: time, text})
-    }
-    return res
-}
 
-function formatDate(time){    
-    const date = new Date(time)
-    var options = {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    };
-    return new Intl.DateTimeFormat('fr-FR', options).format(date)
-}
 
 function updateListView() {
-    render (document.getElementById('dialog_list'), dialogHTML(getAllItems(), loadStorageEntry))
+    render (
+        document.getElementById('dialog_list'),
+        dialogHTML(getAllItems(), v => {
+            loadStorageEntry(v)
+            updateDrawing()
+        })
+    )
 }
 
 run()
 function run() {
     updateDrawing()
     input.addEventListener('keyup', () => {
-        if (!isEmpty(input.value)) updatStorageEntry(input.value)
+        updatStorageEntry(input.value, sample())
         updateDrawing()
     })
     btn_info.addEventListener('click', () => {
@@ -81,20 +50,16 @@ function run() {
         dialog_list.showModal()
     })
     btn_new.addEventListener('click', () => {
-        if (!isEmpty(input.value)) {
-            updatStorageEntry(input.value)
-        }
+        createNew(input.value)
         input.value = ''
         if (painter) painter.clear()
-        currentItem = getNewId()
+
         layers.clearAll()
     })
         
     return VERSION
 }
-function isEmpty(string) {
-    return string.replace(/\s/g, '') === ''
-}
+
 function updateDrawing() {
     if (onGoingdrawing) return
     onGoingdrawing = true
@@ -122,8 +87,9 @@ r2
 - t90
 - #A = A +1`
 }
-function test31() {
-return `r20
+function sample() {
+return `#L=1000
+r20
 -r36
 --a20
 --t10
@@ -132,8 +98,8 @@ d0
 r100
 -a228.6
 -d1
--a1000
--a-1000
+-aL
+-a-L
 -d0
 -a-228.6
 -t3.6
