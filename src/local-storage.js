@@ -31,7 +31,7 @@ export function getAllItems() {
         const  text = formatDate(time)
         res.push( {id: time, text})
     }
-    return res
+    return [...res, ...res, ...res, ... res, ... res, ...res, ...res]
 }
 
 function formatDate(time){    

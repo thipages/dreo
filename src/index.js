@@ -65,17 +65,6 @@ function updateDrawing() {
         onGoingdrawing = false
     }
 }
-
-function test3() {
-return `
-#A=1
-#C=1
-r2
--#C = A*2
-- aC*20
-- t90
-- #A = A +1`
-}
 function sample() {
 return `#L=1000
 r20

@@ -22,6 +22,7 @@ sinh x	sinus hyperbolique de x (x is in radians)
 sqrt x	racine carré de x
 tan x	tangente de x (en radians)
 tanh x	tangente hyperbolique de x (en radians)
+atan2(y, x)	Arc tangent de x/y. Angle entre (0, 0) and (x, y) en radians
 `
 
 export const helpFunctions = help
