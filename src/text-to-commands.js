@@ -3,7 +3,7 @@ const parser = new Parser()
 const commandList = {
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
-    r: {min: 1, validate: [isExpression, isExpression]},
+    r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
     z: {validate: [isExpression, isExpression]},
     f: {validate: [isExpression, isExpression, isExpression, isExpression]}
@@ -79,7 +79,6 @@ function validateArguments(verb, args) {
 }
 function parseLine(command, index, loops, drawingCommands, mode) {
     const { dash, verb, args } = getTokens(command, index)
-    // validateArguments(verb, args)
     const arg = args//[0]
     const dashNum = dash.length
     const loopsNum = loops.length
@@ -115,7 +114,7 @@ function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mo
         } else {
             throwError(index, 'mismatch on loops')
         }
-    }   
+    }
 }
 function parser2(diff, newCommand, loops, drawingCommands, isRepeat) {
     for (let i = 0; i < diff; i++){

@@ -30,3 +30,31 @@ export const helpFunctions = help
     .filter (v => v.length === 2)
     .map (v => `<div class="bold small">${v[0]}</div><div class="small">${v[1]}</div>`)
     .join('')
+
+
+export const sample = 
+`#L=1000
+r20
+-r36
+--a20
+--t10
+-t18
+d0
+r100
+-a228.6
+-d1
+-aL
+-a-L
+-d0
+-a-228.6
+-t3.6
+
+t-90
+a400
+t90
+
+a-35
+d1
+r36
+-a69.9
+-t10`

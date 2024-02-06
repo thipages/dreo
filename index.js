@@ -1822,7 +1822,7 @@ const parser$3 = new Parser();
 const commandList = {
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
-    r: {min: 1, validate: [isExpression, isExpression]},
+    r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
     z: {validate: [isExpression, isExpression]},
     f: {validate: [isExpression, isExpression, isExpression, isExpression]}
@@ -1893,7 +1893,6 @@ function validateArguments(verb, args) {
 }
 function parseLine(command, index, loops, drawingCommands, mode) {
     const { dash, verb, args } = getTokens(command, index);
-    // validateArguments(verb, args)
     const arg = args;//[0]
     const dashNum = dash.length;
     const loopsNum = loops.length;
@@ -1929,7 +1928,7 @@ function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mo
         } else {
             throwError(index, 'mismatch on loops');
         }
-    }   
+    }
 }
 function parser2(diff, newCommand, loops, drawingCommands, isRepeat) {
     for (let i = 0; i < diff; i++){
@@ -1952,7 +1951,6 @@ const parser$2 = new Parser();
 function drawer ({layers, commands }) {
     const {width, height } = layers.getDimension();
     const all = layers.getAll();
-    
     model.points = [{ x: 0, y: 0 }];
     model.angle = 0;
     model.width = width;
@@ -1961,7 +1959,7 @@ function drawer ({layers, commands }) {
     model.y = height/2;
     model.level = 0;
     // drawTriangle(all[1].ctx,20, model.points[0], model.angle)
-    draw(all, commands, model.width);
+    draw$1(all, commands, model.width);
     return {
       clear () {
         drawer( {layers, commands: [] });
@@ -2020,6 +2018,7 @@ function basicCommand(all, offset) {
 function repeat(ctx, command) {
   model.level ++;
   repete(command.arg, (offset) => {
+    //if (command.children.length === 0) throw 'ERROR: loop needs children'
       for (const [index, child] of command.children.entries()) {
           if (child.verb === 'r') {
               repeat(ctx, child);
@@ -2046,12 +2045,13 @@ function repete(args, fn) {
     iMax = iMin;
     iMin = 0;
   }
+
   for (let i = iMin; i < iMax; i+=increment) {
     model[getIndexVars(model.level)] = i;
     fn(offset);
   }
 }
-function draw(all, commands, width) {
+function draw$1(all, commands, width) {
     for (const command of commands) {
       const {verb, arg} = command;
       if (verb === 'f') ; else if (command.verb === 'r') {
@@ -2115,11 +2115,39 @@ tanh x	tangente hyperbolique de x (en radians)
 atan2(y, x)	Arc tangent de x/y. Angle entre (0, 0) and (x, y) en radians
 `;
 
-const helpFunctions = help
+help
     .split('\n').map(v=>v.split('\t'))
     .filter (v => v.length === 2)
     .map (v => `<div class="bold small">${v[0]}</div><div class="small">${v[1]}</div>`)
     .join('');
+
+
+const sample = 
+`#L=1000
+r20
+-r36
+--a20
+--t10
+-t18
+d0
+r100
+-a228.6
+-d1
+-aL
+-a-L
+-d0
+-a-228.6
+-t3.6
+
+t-90
+a400
+t90
+
+a-35
+d1
+r36
+-a69.9
+-t10`;
 
 const canvasStyle = `
     width: 100%;
@@ -3190,27 +3218,23 @@ function formatDate(time){
 }
 
 //
-input.value = sample();
-// unfinished function implementation
-//input.value = 'fi,100*sin(5*i+10),0,1'
-const layers = canvasLayers(cLayers, 2);
-let onGoingdrawing = false;
-t2.innerHTML = helpFunctions;
-
 run();
-
 function run() {
-    let painter;
-    updateDrawing(painter);
+    input.value = sample;
+    // unfinished function implementation
+    //input.value = 'fi,100*sin(5*i+10),0,1'
+    const layers = canvasLayers(cLayers, 2);
+    let onGoingdrawing = false;
+    updateDrawing();
     input.addEventListener('keyup', () => {
-        updatStorageEntry(input.value, sample());
-        updateDrawing(painter);
+        updatStorageEntry(input.value, sample);
+        updateDrawing();
     });
     btn_info.addEventListener('click', () => {
         dialog.showModal();
     });
     btn_list.addEventListener('click', () => {
-        updateListView(painter);
+        updateListView();
         dialog_list.showModal();
     });
     btn_new.addEventListener('click', () => {
@@ -3218,59 +3242,37 @@ function run() {
         input.value = '';
         layers.clearAll();
     });
-}
-function updateListView(painter) {
-    render (
-        document.getElementById(
-            'dialog_list'),
-            dialogHTML(getAllEntries(), v => {
-                input.value = loadStorageEntry(v);
-                updateDrawing(painter);
-            }
-    ));
-}
-function updateDrawing(painter) {
-    if (onGoingdrawing) return
-    onGoingdrawing = true;
-    textError.innerText = '';
-    layers.clearAll();
-    try {
-        const {commands, error} = textToCommands(input.value);
-        painter = drawer({layers, commands});
-        if (error) throw error
-    } catch (e) {
-        console.log(e);
-        textError.innerText = e;
-    } finally {
+    function loadDrawing(v) {
+        input.value = loadStorageEntry(v);
+        updateDrawing();
+    }
+    function updateListView() {
+        render (
+            dialog_list,
+            dialogHTML(getAllEntries(),loadDrawing)
+        );
+    }
+    function updateDrawing() {
+        if (onGoingdrawing) return
+        onGoingdrawing = true;
+        textError.innerText = '';
+        layers.clearAll();
+        const {error} = draw(layers, input.value);
         onGoingdrawing = false;
+        if (error) {
+            textError.innerText = error;
+        }
     }
 }
-function sample() {
-return `#L=1000
-r20
--r36
---a20
---t10
--t18
-d0
-r100
--a228.6
--d1
--aL
--a-L
--d0
--a-228.6
--t3.6
-
-t-90
-a400
-t90
-
-a-35
-d1
-r36
--a69.9
--t10`
+function draw(layers, code) {
+    try {
+        const {commands, error} = textToCommands(code);
+        if (error) return {error}
+        drawer({layers, commands});
+        return {error: null}
+    } catch (e) {
+        return {error : e}
+    }
 }
 
 export { run };

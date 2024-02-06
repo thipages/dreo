@@ -6,7 +6,6 @@ const parser = new Parser()
 export function drawer ({layers, commands }) {
     const {width, height } = layers.getDimension()
     const all = layers.getAll()
-    
     model.points = [{ x: 0, y: 0 }]
     model.angle = 0
     model.width = width
@@ -92,6 +91,7 @@ function basicCommand(all, offset) {
 function repeat(ctx, command) {
   model.level ++
   repete(command.arg, (offset) => {
+    //if (command.children.length === 0) throw 'ERROR: loop needs children'
       for (const [index, child] of command.children.entries()) {
           if (child.verb === 'r') {
               repeat(ctx, child)
@@ -118,6 +118,7 @@ function repete(args, fn) {
     iMax = iMin
     iMin = 0
   }
+
   for (let i = iMin; i < iMax; i+=increment) {
     model[getIndexVars(model.level)] = i
     fn(offset)
