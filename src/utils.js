@@ -11,7 +11,7 @@ atan x	arc tangente de x (en radians)
 atanh x	tangente hyperbolic réciproque (en radians)
 cbrt x	racine cubique
 cos x	cosinus de x (en radians)
-cosh x	cosinus hyperbolic de x (en radians)
+cosh x	cosinus hyperbolique de x (en radians)
 exp x	exponentielle de x (ou e^x)
 ln x	logarithme népérien de x (ou log x)
 log10 x	logarithme de x en base 1
@@ -19,10 +19,10 @@ log2 x	logarithme de x en base 2
 not x	opérateur logiue NOT
 sin x	sinus de x (en radians)
 sinh x	sinus hyperbolique de x (x is in radians)
-sqrt x	racine carré de x
+sqrt x	racine carrée de x
 tan x	tangente de x (en radians)
 tanh x	tangente hyperbolique de x (en radians)
-atan2(y, x)	Arc tangent de x/y. Angle entre (0, 0) and (x, y) en radians
+atan2(y, x)	Arc tangente de x/y. Angle entre (0, 0) and (x, y) en radians
 `
 
 export const helpFunctions = help

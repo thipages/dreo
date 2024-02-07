@@ -1822,6 +1822,7 @@ const parser$3 = new Parser();
 const commandList = {
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
+    c: {validate: isExpression},
     r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
     z: {validate: [isExpression, isExpression]},
@@ -1847,10 +1848,11 @@ function textToCommands(text) {
     try {
         const commands = text.split('\n');
         const loops = [];
-        let drawingMode = true;
+        let drawingModes = {drawing: true, color: 'black'};
         for (const [index, command] of commands.entries()) {
             if (command !== '') {
-                drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode);
+                drawingModes = parseLine(command, index, loops, drawingCommands, drawingModes);
+                
             }
         }
     } catch (e) {
@@ -1891,29 +1893,32 @@ function validateArguments(verb, args) {
     }
     return true
 }
-function parseLine(command, index, loops, drawingCommands, mode) {
+function parseLine(command, index, loops, drawingCommands, drawingModes) {
     const { dash, verb, args } = getTokens(command, index);
     const arg = args;//[0]
     const dashNum = dash.length;
     const loopsNum = loops.length;
     if (verb === 'r') {
-        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, true);
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, true);
     } else {
-        // No need to register 'd' mode command
+        // No need to register 'd' and 'c' drawing commands
         if (verb === 'd') {
             const newMode = arg[0] === '0' ? false : true;
-            return newMode
+            return {...drawingModes, drawing: newMode}
         }
-        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, false);
+        if (verb === 'c') {
+            return { ...drawingModes, color: arg[0]}
+        }
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, false);
     }
-    return mode
+    return drawingModes
 }
 function throwError (lineIndex, message = '') {
     const m = message === '' ? '' : ':' + message;
     throw `Error at line ${lineIndex + 1} ${m}`
 }
-function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, isRepeat) {
-    const newCommand = {verb, arg, children: [], mode};
+function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, isRepeat) {
+    const newCommand = {verb, arg, children: [], ...drawingModes};
     if (loopsNum === 0) {
         drawingCommands.push(newCommand);
         if (isRepeat) loops.push(newCommand.children);
@@ -1966,9 +1971,9 @@ function drawer ({layers, commands }) {
       }
     }
 }
-function drawLine(ctx, point1, point2, drawingMode, offset = {x:0, y:0}) {
+function drawLine(ctx, point1, point2, drawingMode,stroke, offset = {x:0, y:0}) {
     if (drawingMode){
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = stroke;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(point1.x + model.x+ offset.x, point1.y + model.y+ offset.y);
@@ -1997,9 +2002,9 @@ function basicCommand(all, offset) {
     switch (command.verb) {
       case 'a':
         if (values.length === 1) {
-          avance (all, values[0], command.mode, offset); 
+          avance (all, values[0], command.drawing, command.color, offset); 
         } else {
-          deplace (all, values, command.mode, offset);
+          deplace (all, values, command.drawing, command.color, offset);
         }
         break
       case 't':
@@ -2067,13 +2072,13 @@ function draw$1(all, commands, width) {
 function getIndexVars(level) {
   return Array(level).fill('').reduce((acc, v) => {acc+='i';return acc}, '')
 }
-function avance(all, pixelsNum, drawingMode, offset) {
+function avance(all, pixelsNum, drawingMode, color, offset) {
   const lastPoint = model.points[model.points.length -1];
   const x = Math.cos(model.angle)*pixelsNum;
   const y = Math.sin(model.angle)*pixelsNum;
   const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y};
   model.points.push(newPoint);
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset);
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode,color, offset);
 }
 function tourne(all, angle) {
   model.angle -= degToRad(angle);
@@ -2081,11 +2086,11 @@ function tourne(all, angle) {
   /*clear()
   drawTriangle(ctx ,20, {x:0, y:0}, model.angle)*/
 }
-function deplace(all, [x, y], drawingMode, offset) {
+function deplace(all, [x, y], drawingMode, color, offset) {
   const lastPoint = model.points[model.points.length-1];
   const newPoint = {x, y};
   model.points.push(newPoint);
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset);
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, color, offset);
 }
 
 const iArray = (num) => Array(num).fill('').map((v,i)=> i);
@@ -2101,7 +2106,7 @@ atan x	arc tangente de x (en radians)
 atanh x	tangente hyperbolic réciproque (en radians)
 cbrt x	racine cubique
 cos x	cosinus de x (en radians)
-cosh x	cosinus hyperbolic de x (en radians)
+cosh x	cosinus hyperbolique de x (en radians)
 exp x	exponentielle de x (ou e^x)
 ln x	logarithme népérien de x (ou log x)
 log10 x	logarithme de x en base 1
@@ -2109,10 +2114,10 @@ log2 x	logarithme de x en base 2
 not x	opérateur logiue NOT
 sin x	sinus de x (en radians)
 sinh x	sinus hyperbolique de x (x is in radians)
-sqrt x	racine carré de x
+sqrt x	racine carrée de x
 tan x	tangente de x (en radians)
 tanh x	tangente hyperbolique de x (en radians)
-atan2(y, x)	Arc tangent de x/y. Angle entre (0, 0) and (x, y) en radians
+atan2(y, x)	Arc tangente de x/y. Angle entre (0, 0) and (x, y) en radians
 `;
 
 help
@@ -3271,6 +3276,7 @@ function draw(layers, code) {
         drawer({layers, commands});
         return {error: null}
     } catch (e) {
+        console.log(e);
         return {error : e}
     }
 }

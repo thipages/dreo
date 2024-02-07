@@ -65,6 +65,7 @@ function draw(layers, code) {
         drawer({layers, commands})
         return {error: null}
     } catch (e) {
+        console.log(e)
         return {error : e}
     }
 }

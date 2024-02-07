@@ -3,6 +3,7 @@ const parser = new Parser()
 const commandList = {
     a: {min: 1, validate: [isExpression, isExpression]},
     t: {validate: isExpression},
+    c: {validate: isExpression},
     r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
     z: {validate: [isExpression, isExpression]},
@@ -33,10 +34,11 @@ export function textToCommands(text) {
     try {
         const commands = text.split('\n')
         const loops = []
-        let drawingMode = true
+        let drawingModes = {drawing: true, color: 'black'}
         for (const [index, command] of commands.entries()) {
             if (command !== '') {
-                drawingMode = parseLine(command, index, loops, drawingCommands, drawingMode)
+                drawingModes = parseLine(command, index, loops, drawingCommands, drawingModes)
+                
             }
         }
     } catch (e) {
@@ -77,29 +79,32 @@ function validateArguments(verb, args) {
     }
     return true
 }
-function parseLine(command, index, loops, drawingCommands, mode) {
+function parseLine(command, index, loops, drawingCommands, drawingModes) {
     const { dash, verb, args } = getTokens(command, index)
     const arg = args//[0]
     const dashNum = dash.length
     const loopsNum = loops.length
     if (verb === 'r') {
-        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, true)
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, true)
     } else {
-        // No need to register 'd' mode command
+        // No need to register 'd' and 'c' drawing commands
         if (verb === 'd') {
             const newMode = arg[0] === '0' ? false : true
-            return newMode
+            return {...drawingModes, drawing: newMode}
         }
-        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, false)
+        if (verb === 'c') {
+            return { ...drawingModes, color: arg[0]}
+        }
+        parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, false)
     }
-    return mode
+    return drawingModes
 }
 function throwError (lineIndex, message = '') {
     const m = message === '' ? '' : ':' + message
     throw `Error at line ${lineIndex + 1} ${m}`
 }
-function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, mode, isRepeat) {
-    const newCommand = {verb, arg, children: [], mode}
+function parser1(index, verb, arg, loopsNum, dashNum, loops, drawingCommands, drawingModes, isRepeat) {
+    const newCommand = {verb, arg, children: [], ...drawingModes}
     if (loopsNum === 0) {
         drawingCommands.push(newCommand)
         if (isRepeat) loops.push(newCommand.children)

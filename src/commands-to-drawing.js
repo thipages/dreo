@@ -39,9 +39,9 @@ function drawTriangle(ctx, size, point, angle) {
   ctx.fill()
   ctx.restore()
 }
-function drawLine(ctx, point1, point2, drawingMode, offset = {x:0, y:0}) {
+function drawLine(ctx, point1, point2, drawingMode,stroke, offset = {x:0, y:0}) {
     if (drawingMode){
-        ctx.strokeStyle = 'black'
+        ctx.strokeStyle = stroke
         ctx.lineWidth = 3
         ctx.beginPath()
         ctx.moveTo(point1.x + model.x+ offset.x, point1.y + model.y+ offset.y)
@@ -70,9 +70,9 @@ function basicCommand(all, offset) {
     switch (command.verb) {
       case 'a':
         if (values.length === 1) {
-          avance (all, values[0], command.mode, offset) 
+          avance (all, values[0], command.drawing, command.color, offset) 
         } else {
-          deplace (all, values, command.mode, offset)
+          deplace (all, values, command.drawing, command.color, offset)
         }
         break
       case 't':
@@ -156,13 +156,13 @@ function draw(all, commands, width) {
 function getIndexVars(level) {
   return Array(level).fill('').reduce((acc, v) => {acc+='i';return acc}, '')
 }
-function avance(all, pixelsNum, drawingMode, offset) {
+function avance(all, pixelsNum, drawingMode, color, offset) {
   const lastPoint = model.points[model.points.length -1]
   const x = Math.cos(model.angle)*pixelsNum
   const y = Math.sin(model.angle)*pixelsNum
   const newPoint = {x: lastPoint.x + x, y: lastPoint.y + y}
   model.points.push(newPoint)
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset)
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode,color, offset)
 }
 function tourne(all, angle) {
   model.angle -= degToRad(angle)
@@ -170,9 +170,9 @@ function tourne(all, angle) {
   /*clear()
   drawTriangle(ctx ,20, {x:0, y:0}, model.angle)*/
 }
-function deplace(all, [x, y], drawingMode, offset) {
+function deplace(all, [x, y], drawingMode, color, offset) {
   const lastPoint = model.points[model.points.length-1]
   const newPoint = {x, y}
   model.points.push(newPoint)
-  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, offset)
+  drawLine(all[0].ctx, lastPoint, newPoint, drawingMode, color, offset)
 }
