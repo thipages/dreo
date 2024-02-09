@@ -15,8 +15,6 @@ if (DEBUG) {
 run()
 export function run() {
     input.value = sample
-    // unfinished function implementation
-    //input.value = 'fi,100*sin(5*i+10),0,1'
     const layers = canvasLayers(cLayers, 2)
     let onGoingdrawing = false
     updateDrawing()
@@ -65,7 +63,7 @@ function draw(layers, code) {
         drawer({layers, commands})
         return {error: null}
     } catch (e) {
-        console.log(e)
+        if (DEBUG) console.log(e)
         return {error : e}
     }
 }

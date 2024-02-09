@@ -1825,17 +1825,20 @@ const commandList = {
     c: {validate: isExpression},
     r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
-    z: {validate: [isExpression, isExpression]},
-    f: {validate: [isExpression, isExpression, isExpression, isExpression]}
+    z: {validate: [isExpression, isExpression]}
 };
 const castArray = a => Array.isArray(a) ? a : [a];
 function isExpression(str) {
+    return getExpression(str) ? true : false
+}
+function getExpression(str) {
+    let p;
     try {
-        parser$3.parse(str);
+        p=parser$3.parse(str);
     } catch (e) {
         throw 'Error : expression can not be parsed'
     }
-    return true
+    return p
 }
 function inList(items) {
     return function (str) {
@@ -1847,29 +1850,129 @@ function textToCommands(text) {
     let error = false;
     try {
         const commands = text.split('\n');
+        // parse multilines command
+        const newCommands = [];
+        let currentCommand = null;
+        for (const [index, command] of commands.entries()) {
+            if (command.replace(/\s*/g,'') !== '') {
+                if (isFunction(command)) {
+                    if (currentCommand === null) {
+                        currentCommand = {commands:[]};
+                    } else {
+                        const parsed = parseFunction(currentCommand);
+                        newCommands.push(...parsed);
+                        currentCommand = null;
+                    }
+                } else if (currentCommand !==null) {
+                    currentCommand.commands.push(command);
+                } else {
+                    newCommands.push(command);
+                }
+            }
+        }
+        const cleanCommands = newCommands.filter(
+            v => v.replace(/\s*/g,'') !== ''
+        );
+        // parse regular commands
         const loops = [];
         let drawingModes = {drawing: true, color: 'black'};
-        for (const [index, command] of commands.entries()) {
-            if (command !== '') {
-                drawingModes = parseLine(command, index, loops, drawingCommands, drawingModes);
-                
-            }
+        for (const [index, command] of cleanCommands.entries()) {
+            const { dash, verb, args } = getTokens(command, index);
+            drawingModes = parseLine(
+                { dash, verb, args },
+                index,
+                loops,
+                drawingCommands,
+                drawingModes
+            );           
         }
     } catch (e) {
         error = e;
     }
     return {commands: drawingCommands, error}
 }
-function getVariable(line) {
+function isFunction(line) {
+    return /\s*f\s*/g.test(line)
+}
+const sFunction = (color, fn, fnAt0, loopVar, values) => {
+    const declarations = values 
+        ? values.map (v=>`#${v[0]}=${v[1]}`).join('\n')
+        : '';
+    const radDeclaration = loopVar === 'irad'
+        ? '-#irad=2*PI*i/360'
+        : '';
+    return `
+        ${declarations}
+        c${color}
+        d0
+        a0,${fnAt0}
+        d1
+        r360
+        ${radDeclaration}
+        -ai,${fn}`.split('\n')
+};
+function partition(array, isValid) {
+    return array.reduce(([pass, fail], elem) => {
+      return isValid(elem) ? [[...pass, elem], fail] : [pass, [...fail, elem]];
+    }, [[], []]);
+  }
+function parseFunction({ commands }) {
+    //
+    const cCom = commands.filter(v=>v.replace(/s*/g, '') !== '');
+    const fn = cCom.shift();
+    const iVars = getExpression(fn).tokens.filter(
+        v=>v.type ==='IVAR'
+    ).map(v=>v.value);
+    const [loopVars, argVars] = partition(iVars,v=>v==='i' || v === 'irad');
+    const loopVar = loopVars[0];
+    //
+    const sumFn=[];
+    let sumFunAt0=0;
+    let res= cCom.map (
+        (command, index) => {
+            let newFn = ''+fn;
+            for (const iVar of argVars) {
+                newFn = newFn.replace(iVar, iVar + index);
+            }
+            sumFn.push(newFn);
+            const vars = argVars.map (
+                v=> v + index
+            );
+            const args = command.split(',')
+                .map(v=>v.trim());
+            const color = args.pop();
+            const values = args.map((v,i)=>[vars[i], v]);
+            const model = values.reduce(
+                (acc, [key, val]) => {
+                    acc[key]= parser$3.evaluate(val);
+                    return acc
+                },{}
+            );
+            model[loopVar] = 0;
+            const fnAt0 = parser$3.evaluate(newFn,model);
+            sumFunAt0+=fnAt0;
+            return sFunction(color, newFn,fnAt0, loopVar, values)
+        }
+    );
+    res.push(
+        sFunction('magenta', sumFn.join('+') ,sumFunAt0, loopVar)
+    );
+    return res.flat()
+}
+function isLoopVariable(sVar) {
+    const set = new Set (sVar.split(''));
+    return set.size === 1 && set.has('i')
+}
+function getVariable(line, index) {
     const re = /^\s*(-*)\s*#(\w+)\s*=\s*(.+)\s*/g;
     const matches = [...line.matchAll(re)];
     if (matches.length === 0) return false
     const [, dash, verb, arg] = matches[0];
-    if (verb.charAt(0) === 'i') throwError (index, 'variable can not start with the letter i');
+    if (isLoopVariable(verb)) throwError (index, 'variable can not start with the letter i');
     return { dash, verb: '#', args:[verb, arg] }
 }
 function getTokens(line, index) {
-        const v = getVariable(line);
+        const v = getVariable(line, index);
         if (v) return v
         const rCom = Object.keys(commandList).join('|');
         const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g');
@@ -1893,9 +1996,7 @@ function validateArguments(verb, args) {
     }
     return true
 }
-function parseLine(command, index, loops, drawingCommands, drawingModes) {
-    const { dash, verb, args } = getTokens(command, index);
-    const arg = args;//[0]
+function parseLine({ dash, verb, args:arg }, index, loops, drawingCommands, drawingModes) {
     const dashNum = dash.length;
     const loopsNum = loops.length;
     if (verb === 'r') {
@@ -2023,7 +2124,6 @@ function basicCommand(all, offset) {
 function repeat(ctx, command) {
   model.level ++;
   repete(command.arg, (offset) => {
-    //if (command.children.length === 0) throw 'ERROR: loop needs children'
       for (const [index, child] of command.children.entries()) {
           if (child.verb === 'r') {
               repeat(ctx, child);
@@ -2058,8 +2158,7 @@ function repete(args, fn) {
 }
 function draw$1(all, commands, width) {
     for (const command of commands) {
-      const {verb, arg} = command;
-      if (verb === 'f') ; else if (command.verb === 'r') {
+      if (command.verb === 'r') {
         repeat(all, command);
       } else {
         model.i = undefined;
@@ -2126,7 +2225,6 @@ help
     .map (v => `<div class="bold small">${v[0]}</div><div class="small">${v[1]}</div>`)
     .join('');
 
-
 const sample = 
 `#L=1000
 r20
@@ -2152,7 +2250,15 @@ a-35
 d1
 r36
 -a69.9
--t10`;
+-t10
+
+
+f
+a0*sin(a1*irad+a2)
+40,PI,0,blue
+40,2*PI,0,green
+-30,6*PI,0,black
+f`;
 
 const canvasStyle = `
     width: 100%;
@@ -3226,8 +3332,6 @@ function formatDate(time){
 run();
 function run() {
     input.value = sample;
-    // unfinished function implementation
-    //input.value = 'fi,100*sin(5*i+10),0,1'
     const layers = canvasLayers(cLayers, 2);
     let onGoingdrawing = false;
     updateDrawing();
@@ -3276,7 +3380,6 @@ function draw(layers, code) {
         drawer({layers, commands});
         return {error: null}
     } catch (e) {
-        console.log(e);
         return {error : e}
     }
 }

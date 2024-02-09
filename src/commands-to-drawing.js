@@ -91,7 +91,6 @@ function basicCommand(all, offset) {
 function repeat(ctx, command) {
   model.level ++
   repete(command.arg, (offset) => {
-    //if (command.children.length === 0) throw 'ERROR: loop needs children'
       for (const [index, child] of command.children.entries()) {
           if (child.verb === 'r') {
               repeat(ctx, child)
@@ -127,23 +126,7 @@ function repete(args, fn) {
 function draw(all, commands, width) {
     for (const command of commands) {
       const {verb, arg} = command
-      if (verb === 'f') {
-        /*command.verb = 'r'
-        const [x, y, min, max] = arg
-        command.children.push(
-          {verb: 'a', arg:[x, y], mode: true}
-        )
-        const [iMin, iMax] = [min, max].map(v=>v|0)
-        command.arg =[iMin, iMax, true]
-        command.mode = true
-        const values = [x, y].map(
-          v => ''+parser.parse(v).evaluate({i:min})
-        )
-        const moveCommand = {
-          verb: 'a', arg: values, mode: false
-        }
-        draw(all, [moveCommand, command], width)*/
-      } else if (command.verb === 'r') {
+      if (command.verb === 'r') {
         repeat(all, command)
       } else {
         model.i = undefined

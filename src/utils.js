@@ -31,6 +31,17 @@ export const helpFunctions = help
     .map (v => `<div class="bold small">${v[0]}</div><div class="small">${v[1]}</div>`)
     .join('')
 
+export const sample2 = ` 
+#a00=40
+#a10=PI
+#a20=0
+cblue
+d0
+a0,0
+d1
+r360
+-#irad=2*PI*i/360
+-ai,a00*sin(a10*irad+a20)`
 
 export const sample = 
 `#L=1000
@@ -57,4 +68,12 @@ a-35
 d1
 r36
 -a69.9
--t10`
+-t10
+
+
+f
+a0*sin(a1*irad+a2)
+40,PI,0,blue
+40,2*PI,0,green
+-30,6*PI,0,black
+f`

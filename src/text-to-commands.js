@@ -6,8 +6,7 @@ const commandList = {
     c: {validate: isExpression},
     r: {min: 1, validate: [isExpression/*, isExpression*/]}, // not working with 2 arguments
     d: {validate: inList(['0','1'])},
-    z: {validate: [isExpression, isExpression]},
-    f: {validate: [isExpression, isExpression, isExpression, isExpression]}
+    z: {validate: [isExpression, isExpression]}
 }
 const castArray = a => Array.isArray(a) ? a : [a]
 // https://stackoverflow.com/questions/175739/how-can-i-check-if-a-string-is-a-valid-number
@@ -16,12 +15,16 @@ function isNumeric(str) {
     return !isNaN(str) && !isNaN(parseFloat(str))
 }
 function isExpression(str) {
+    return getExpression(str) ? true : false
+}
+function getExpression(str) {
+    let p
     try {
-        parser.parse(str)
+        p=parser.parse(str)
     } catch (e) {
         throw 'Error : expression can not be parsed'
     }
-    return true
+    return p
 }
 function inList(items) {
     return function (str) {
@@ -33,29 +36,129 @@ export function textToCommands(text) {
     let error = false
     try {
         const commands = text.split('\n')
+        // parse multilines command
+        const newCommands = []
+        let currentCommand = null
+        for (const [index, command] of commands.entries()) {
+            if (command.replace(/\s*/g,'') !== '') {
+                if (isFunction(command)) {
+                    if (currentCommand === null) {
+                        currentCommand = {commands:[]}
+                    } else {
+                        const parsed = parseFunction(currentCommand)
+                        newCommands.push(...parsed)
+                        currentCommand = null
+                    }
+                } else if (currentCommand !==null) {
+                    currentCommand.commands.push(command)
+                } else {
+                    newCommands.push(command)
+                }
+            }
+        }
+        const cleanCommands = newCommands.filter(
+            v => v.replace(/\s*/g,'') !== ''
+        )
+        // parse regular commands
         const loops = []
         let drawingModes = {drawing: true, color: 'black'}
-        for (const [index, command] of commands.entries()) {
-            if (command !== '') {
-                drawingModes = parseLine(command, index, loops, drawingCommands, drawingModes)
-                
-            }
+        for (const [index, command] of cleanCommands.entries()) {
+            const { dash, verb, args } = getTokens(command, index)
+            drawingModes = parseLine(
+                { dash, verb, args },
+                index,
+                loops,
+                drawingCommands,
+                drawingModes
+            )           
         }
     } catch (e) {
         error = e
     }
     return {commands: drawingCommands, error}
 }
-function getVariable(line) {
+function isFunction(line) {
+    return /\s*f\s*/g.test(line)
+}
+const sFunction = (color, fn, fnAt0, loopVar, values) => {
+    const declarations = values 
+        ? values.map (v=>`#${v[0]}=${v[1]}`).join('\n')
+        : ''
+    const radDeclaration = loopVar === 'irad'
+        ? '-#irad=2*PI*i/360'
+        : ''
+    return `
+        ${declarations}
+        c${color}
+        d0
+        a0,${fnAt0}
+        d1
+        r360
+        ${radDeclaration}
+        -ai,${fn}`.split('\n')
+}
+function partition(array, isValid) {
+    return array.reduce(([pass, fail], elem) => {
+      return isValid(elem) ? [[...pass, elem], fail] : [pass, [...fail, elem]];
+    }, [[], []]);
+  }
+function parseFunction({ commands }) {
+    //
+    const cCom = commands.filter(v=>v.replace(/s*/g, '') !== '')
+    const fn = cCom.shift()
+    const iVars = getExpression(fn).tokens.filter(
+        v=>v.type ==='IVAR'
+    ).map(v=>v.value)
+    const [loopVars, argVars] = partition(iVars,v=>v==='i' || v === 'irad')
+    const loopVar = loopVars[0]
+    //
+    const sumFn=[]
+    let sumFunAt0=0
+    let res= cCom.map (
+        (command, index) => {
+            let newFn = ''+fn
+            for (const iVar of argVars) {
+                newFn = newFn.replace(iVar, iVar + index)
+            }
+            sumFn.push(newFn)
+            const vars = argVars.map (
+                v=> v + index
+            )
+            const args = command.split(',')
+                .map(v=>v.trim())
+            const color = args.pop()
+            const values = args.map((v,i)=>[vars[i], v])
+            const model = values.reduce(
+                (acc, [key, val]) => {
+                    acc[key]= parser.evaluate(val)
+                    return acc
+                },{}
+            )
+            model[loopVar] = 0
+            const fnAt0 = parser.evaluate(newFn,model)
+            sumFunAt0+=fnAt0
+            return sFunction(color, newFn,fnAt0, loopVar, values)
+        }
+    )
+    res.push(
+        sFunction('magenta', sumFn.join('+') ,sumFunAt0, loopVar)
+    )
+    return res.flat()
+}
+function isLoopVariable(sVar) {
+    const set = new Set (sVar.split(''))
+    return set.size === 1 && set.has('i')
+}
+function getVariable(line, index) {
     const re = /^\s*(-*)\s*#(\w+)\s*=\s*(.+)\s*/g
     const matches = [...line.matchAll(re)]
     if (matches.length === 0) return false
     const [, dash, verb, arg] = matches[0]
-    if (verb.charAt(0) === 'i') throwError (index, 'variable can not start with the letter i')
+    if (isLoopVariable(verb)) throwError (index, 'variable can not start with the letter i')
     return { dash, verb: '#', args:[verb, arg] }
 }
 function getTokens(line, index) {
-        const v = getVariable(line)
+        const v = getVariable(line, index)
         if (v) return v
         const rCom = Object.keys(commandList).join('|')
         const re = new RegExp(`\\s*(-*)\\s*([${rCom}])\\s*(.+)`, 'g')
@@ -79,9 +182,7 @@ function validateArguments(verb, args) {
     }
     return true
 }
-function parseLine(command, index, loops, drawingCommands, drawingModes) {
-    const { dash, verb, args } = getTokens(command, index)
-    const arg = args//[0]
+function parseLine({ dash, verb, args:arg }, index, loops, drawingCommands, drawingModes) {
     const dashNum = dash.length
     const loopsNum = loops.length
     if (verb === 'r') {
